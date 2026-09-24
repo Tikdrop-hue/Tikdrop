@@ -162,9 +162,26 @@ export default function App() {
       matchesFolder = item.folder === targetIdentifier || item.folder === targetName;
     }
 
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.creator.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (item.note && item.note.toLowerCase().includes(searchQuery.toLowerCase()));
+    // --- PERBAIKAN LOGIKA PENCARIAN ---
+    let matchesSearch = true;
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase().trim();
+      // Hilangkan '@' dari input teks pencarian kreator
+      const queryCreator = query.replace(/@/g, ''); 
+
+      const safeTitle = item.title ? item.title.toLowerCase() : '';
+      // Hilangkan '@' dari data kreator di sistem agar cocok dengan queryCreator
+      const safeCreator = item.creator ? item.creator.toLowerCase().replace(/@/g, '') : '';
+      const safeNote = item.note ? item.note.toLowerCase() : '';
+
+      const matchTitle = safeTitle.includes(query);
+      const matchCreator = safeCreator.includes(queryCreator);
+      const matchNote = safeNote.includes(query);
+
+      matchesSearch = matchTitle || matchCreator || matchNote;
+    }
+    // ----------------------------------
+
     const matchesFav = !showFavoritesOnly || item.isFavorite;
     return matchesFolder && matchesSearch && matchesFav;
   }).sort((a, b) => {
