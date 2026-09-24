@@ -90,7 +90,28 @@ export const i18nDict = {
     tutFeat2Title: "Sitasi Markdown",
     tutFeat2Desc: "Salin format kutipan ilmiah/catatan dengan 1-klik dari pemutar video.",
     tutFooterNote: "Dokumentasi resmi TikDrop Vault v4.0",
-    tutBtnUnderstood: "Saya Mengerti"
+    tutBtnUnderstood: "Saya Mengerti",
+
+    // --- TAMBAHAN BARU: Notifikasi, Loading, & Ekspor ZIP ---
+    loadingVault: "Memuat Vault...",
+    toastLangSwitched: "Bahasa diubah ke Indonesia",
+    toastMetaSaved: "Metadata tersimpan! Mengunduh video di latar belakang...",
+    toastDownloadSuccess: "Video berhasil diunduh dan diamankan di brankas lokal!",
+    toastDownloadFail: "Gagal mengunduh offline. Video akan menggunakan streaming online.",
+    toastPinned: "Video disematkan di atas",
+    toastUnpinned: "Sematkan dilepas",
+    toastMoved: "Video berhasil dipindahkan!",
+    toastBatchMoved: "Video terpilih berhasil dipindahkan!",
+    toastFolderRenamed: "Nama folder diubah!",
+    toastJsonExported: "Backup JSON beserta folder berhasil diunduh!",
+    toastDataRestored: "Data berhasil dipulihkan!",
+    toastDataFolderRestored: "Data & Folder berhasil dipulihkan!",
+    toastInvalidJson: "Format JSON tidak valid!",
+    toastZipCreating: "Membuat arsip ZIP, mohon tunggu...",
+    toastZipSuccess: "Vault diekspor! Termasuk file video offline.",
+    toastZipFail: "Terjadi kesalahan saat membuat file ZIP.",
+    toastDeleted: "Video berhasil dihapus!",
+    footerExportZip: "Export Full ZIP"
   },
   en: {
     appSubtitle: "Vault Studio",
@@ -183,6 +204,27 @@ export const i18nDict = {
     tutFeat2Title: "Markdown Citation",
     tutFeat2Desc: "Copy research/note citations with 1-click inside the video player.",
     tutFooterNote: "Official TikDrop Vault Documentation v4.0",
-    tutBtnUnderstood: "I Understand"
+    tutBtnUnderstood: "I Understand",
+
+    // --- NEW ADDITIONS: Notifications, Loading, & ZIP Export ---
+    loadingVault: "Loading Vault...",
+    toastLangSwitched: "Language switched to English",
+    toastMetaSaved: "Metadata saved! Downloading video in background...",
+    toastDownloadSuccess: "Video successfully downloaded and secured in local vault!",
+    toastDownloadFail: "Failed to download offline. Video will use online streaming.",
+    toastPinned: "Video pinned to top",
+    toastUnpinned: "Unpinned video",
+    toastMoved: "Video moved successfully!",
+    toastBatchMoved: "Selected videos moved successfully!",
+    toastFolderRenamed: "Folder renamed!",
+    toastJsonExported: "JSON backup with folders downloaded!",
+    toastDataRestored: "Data restored successfully!",
+    toastDataFolderRestored: "Data & Folders restored successfully!",
+    toastInvalidJson: "Invalid JSON format!",
+    toastZipCreating: "Creating ZIP archive, please wait...",
+    toastZipSuccess: "Vault exported! Included offline video files.",
+    toastZipFail: "Error creating ZIP file.",
+    toastDeleted: "Videos deleted!",
+    footerExportZip: "Export Full ZIP"
   }
 };
