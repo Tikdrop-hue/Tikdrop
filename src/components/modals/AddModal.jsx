@@ -26,8 +26,9 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
     setLoading(true);
 
     try {
-      // Tembak LANGSUNG ke API TikWM tanpa proxy perantara
-      const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url.trim())}`;
+      // PERUBAHAN NOMOR 1: Tembak ke Serverless Function internal Vercel kita
+      // bukan lagi langsung ke https://www.tikwm.com/api/
+      const apiUrl = `/api/fetch-video?url=${encodeURIComponent(url.trim())}`;
       const response = await fetch(apiUrl);
 
       if (!response.ok) {
