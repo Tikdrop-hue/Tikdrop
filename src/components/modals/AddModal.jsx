@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave, onShowToast }) {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [urlHistory, setUrlHistory] = useState([]); // State untuk menyimpan riwayat
+  const [showHistory, setShowHistory] = useState(false); // State untuk menampilkan/menyembunyikan riwayat
   const [formData, setFormData] = useState({
     title: '',
     creator: '',
@@ -14,6 +16,22 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
     caption: ''
   });
 
+  // Muat riwayat dari localStorage saat modal dibuka
+  useEffect(() => {
+    if (isOpen) {
+      const savedHistory = localStorage.getItem('tikDropUrlHistory');
+      if (savedHistory) {
+        try {
+          setUrlHistory(JSON.parse(savedHistory));
+        } catch (e) {
+          console.error("Gagal memuat riwayat:", e);
+        }
+      }
+    } else {
+        setShowHistory(false); // Sembunyikan dropdown saat modal ditutup
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleFetch = async (e) => {
@@ -22,6 +40,12 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
       onShowToast('Masukkan URL TikTok terlebih dahulu!', 'fa-triangle-exclamation');
       return;
     }
+    
+    // Simpan URL ke riwayat (maksimal 5, hilangkan duplikat)
+    const newHistory = [url.trim(), ...urlHistory.filter(h => h !== url.trim())].slice(0, 5);
+    setUrlHistory(newHistory);
+    localStorage.setItem('tikDropUrlHistory', JSON.stringify(newHistory));
+    setShowHistory(false); // Sembunyikan riwayat saat mulai fetch
 
     setLoading(true);
 
@@ -106,6 +130,11 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
     });
   };
 
+  const handleHistoryClick = (historyUrl) => {
+      setUrl(historyUrl);
+      setShowHistory(false);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
       <div className="bg-zinc-800 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col">
@@ -130,21 +159,41 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
         {/* Content Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto no-scrollbar bg-zinc-800">
           {/* TikTok URL + Fetch Button */}
-          <div>
+          <div className="relative">
             <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addUrlLabel || 'TikTok Video URL'}</label>
             <div className="flex gap-2">
-              <input 
-                type="url" 
-                value={url} 
-                onChange={(e) => setUrl(e.target.value)} 
-                placeholder="https://www.tiktok.com/@user/video/..." 
-                className="flex-1 bg-zinc-900 text-xs text-white p-3.5 rounded-2xl border-none outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-inner" 
-              />
+              <div className="flex-1 relative">
+                  <input 
+                    type="url" 
+                    value={url} 
+                    onChange={(e) => {
+                        setUrl(e.target.value);
+                        setShowHistory(true); // Tampilkan riwayat saat mengetik
+                    }}
+                    onFocus={() => setShowHistory(true)} // Tampilkan riwayat saat input difokuskan
+                    placeholder="https://www.tiktok.com/@user/video/..." 
+                    className="w-full bg-zinc-900 text-xs text-white p-3.5 rounded-2xl border-none outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-inner" 
+                  />
+                  {/* Dropdown Riwayat */}
+                  {showHistory && urlHistory.length > 0 && (
+                      <div className="absolute top-full left-0 mt-1 w-full bg-zinc-900 rounded-xl shadow-lg border border-zinc-700/50 overflow-hidden z-10">
+                          {urlHistory.map((item, index) => (
+                              <div 
+                                  key={index} 
+                                  onClick={() => handleHistoryClick(item)}
+                                  className="px-4 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer truncate border-b border-zinc-800 last:border-b-0"
+                              >
+                                  {item}
+                              </div>
+                          ))}
+                      </div>
+                  )}
+              </div>
               <button 
                 type="button" 
                 onClick={handleFetch} 
                 disabled={loading} 
-                className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-5 py-3.5 rounded-2xl font-black text-xs transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-5 py-3.5 rounded-2xl font-black text-xs transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center whitespace-nowrap"
               >
                 {loading ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-wand-magic-sparkles"></i>}
               </button>
