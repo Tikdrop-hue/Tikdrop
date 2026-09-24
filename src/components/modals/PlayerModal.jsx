@@ -13,11 +13,14 @@ export default function PlayerModal({
 }) {
   const [note, setNote] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // Tambahan state untuk mendeteksi apakah link video CDN sudah expired/403
+  const [mediaError, setMediaError] = useState(false); 
   const dropdownRef = useRef(null);
 
   useEffect(() => {
     if (activeVideo) {
       setNote(activeVideo.note || '');
+      setMediaError(false); // Reset state error saat membuka video baru
     }
   }, [activeVideo]);
 
@@ -76,15 +79,16 @@ export default function PlayerModal({
           <i className="fa-solid fa-xmark text-lg"></i>
         </button>
 
-        {/* Pemutar Video - Border dihapus agar menyatu sempurna */}
-        <div className="w-full md:w-[360px] lg:w-[420px] bg-black relative flex items-center justify-center shrink-0">
-          {directVideoSrc ? (
+        {/* Pemutar Video */}
+        <div className="w-full aspect-[9/16] md:aspect-auto md:w-[349px] bg-black relative flex items-center justify-center shrink-0">
+          {/* Fallback cerdas: Jika direct video error, langsung alihkan ke Iframe */}
+          {directVideoSrc && !mediaError ? (
             <video 
               src={directVideoSrc} 
               controls 
               autoPlay 
               loop
-              // object-cover memastikan video mengisi penuh kontainer hingga ke sudut melengkung
+              onError={() => setMediaError(true)} // Deteksi jika URL video mati/403
               className="w-full h-full object-cover"
             />
           ) : (
