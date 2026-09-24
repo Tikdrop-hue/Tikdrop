@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import localforage from 'localforage'; // Tambahan import untuk mengambil blob
 
 export default function PlayerModal({ 
   activeVideo, 
@@ -13,8 +14,13 @@ export default function PlayerModal({
 }) {
   const [note, setNote] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  // Tambahan state untuk mendeteksi apakah link video CDN sudah expired/403
   const [mediaError, setMediaError] = useState(false); 
+  
+  // -- TAMBAHAN STATE UNTUK VAULT GUARD & OFFLINE VIDEO --
+  const [localVideoUrl, setLocalVideoUrl] = useState(null);
+  const [mediaStatus, setMediaStatus] = useState('Checking...');
+  // -------------------------------------------------------
+  
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -23,6 +29,43 @@ export default function PlayerModal({
       setMediaError(false); // Reset state error saat membuka video baru
     }
   }, [activeVideo]);
+
+  // -- TAMBAHAN LOGIKA PENGECEKAN BLOB DI INDEXEDDB --
+  useEffect(() => {
+    let currentObjectUrl = null;
+    
+    const checkOfflineMedia = async () => {
+        if (activeVideo) {
+            setMediaStatus('Checking...');
+            try {
+                // Cari blob video berdasarkan ID
+                const blob = await localforage.getItem(`video_blob_${activeVideo.id}`);
+                
+                if (blob) {
+                    // Buat link lokal untuk diputar dari blob
+                    currentObjectUrl = URL.createObjectURL(blob);
+                    setLocalVideoUrl(currentObjectUrl);
+                    setMediaStatus('True Offline (Aman)');
+                } else {
+                    setLocalVideoUrl(null);
+                    setMediaStatus('Online Cloud');
+                }
+            } catch (err) {
+                console.error("Gagal memeriksa video offline:", err);
+                setLocalVideoUrl(null);
+                setMediaStatus('Online Cloud');
+            }
+        }
+    };
+    
+    checkOfflineMedia();
+    
+    // Cleanup memory saat tutup modal atau ganti video agar tidak memori leak
+    return () => {
+        if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+    };
+  }, [activeVideo]);
+  // ----------------------------------------------------
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -81,14 +124,28 @@ export default function PlayerModal({
 
         {/* Pemutar Video */}
         <div className="w-full aspect-[9/16] md:aspect-auto md:w-[349px] bg-black relative flex items-center justify-center shrink-0">
+          
+          {/* TAMBAHAN: Indikator Vault Status Guard */}
+          <div className="absolute top-4 left-4 z-20 px-2 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-[10px] text-white font-bold flex gap-1.5 items-center shadow-lg">
+            {mediaStatus === 'True Offline (Aman)' && <i className="fa-solid fa-lock text-emerald-400"></i>}
+            {mediaStatus === 'Online Cloud' && !mediaError && <i className="fa-solid fa-cloud text-blue-400"></i>}
+            {mediaError && <i className="fa-solid fa-skull-crossbones text-red-500"></i>}
+            <span>{mediaError ? 'Source Dead' : mediaStatus}</span>
+          </div>
+          {/* -------------------------------------- */}
+
           {/* Fallback cerdas: Jika direct video error, langsung alihkan ke Iframe */}
-          {directVideoSrc && !mediaError ? (
+          {/* Memprioritaskan localVideoUrl jika ada, jika tidak, pakai directVideoSrc CDN */}
+          {(localVideoUrl || directVideoSrc) && !mediaError ? (
             <video 
-              src={directVideoSrc} 
+              src={localVideoUrl || directVideoSrc} 
               controls 
               autoPlay 
               loop
-              onError={() => setMediaError(true)} // Deteksi jika URL video mati/403
+              onError={() => {
+                setMediaError(true);
+                setMediaStatus('Source Dead');
+              }} // Deteksi jika URL video mati/403
               className="w-full h-full object-cover"
             />
           ) : (

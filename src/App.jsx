@@ -188,11 +188,66 @@ export default function App() {
     }
   };
 
-  const handleSaveVideo = (newEntry) => {
+  // --- LOGIKA BARU: BACKGROUND DOWNLOAD & PENYIMPANAN BLOB ---
+  const handleSaveVideo = async (newEntry) => {
+    const entryId = newEntry.id;
+    
+    // 1. Simpan metadata awal ke state
     setArchives(prev => [newEntry, ...prev]);
     setIsAddOpen(false);
-    showToast(lang === 'id' ? 'Video TikTok berhasil diarsipkan!' : 'TikTok video archived successfully!', 'fa-circle-check');
+    
+    // 2. Tampilkan toast info bahwa download offline sedang berjalan
+    showToast(
+      lang === 'id' 
+        ? 'Metadata tersimpan! Mengunduh video di latar belakang...' 
+        : 'Metadata saved! Downloading video in background...', 
+      'fa-cloud-arrow-down'
+    );
+
+    try {
+      // 3. Panggil API internal Vercel untuk download video (mengatasi CORS)
+      // Pastikan property video URL sesuai dengan struktur data dari TikWM
+      const targetUrl = newEntry.videoUrl || newEntry.playUrl || newEntry.src;
+      
+      if (!targetUrl) {
+         throw new Error("URL Video tidak ditemukan pada payload");
+      }
+
+      const proxyUrl = `/api/download-video?videoUrl=${encodeURIComponent(targetUrl)}`;
+      const response = await fetch(proxyUrl);
+      
+      if (!response.ok) throw new Error('Gagal mengunduh file biner dari proxy');
+      
+      // 4. Ubah response menjadi biner (Blob)
+      const videoBlob = await response.blob(); 
+      
+      // 5. Simpan biner tersebut ke IndexedDB dengan prefix 'video_blob_' + id
+      await localforage.setItem(`video_blob_${entryId}`, videoBlob);
+      
+      // 6. Update status video di state archives menjadi (Offline Ready = true)
+      setArchives(prev => prev.map(item => 
+        item.id === entryId ? { ...item, isOfflineReady: true } : item
+      ));
+
+      showToast(
+        lang === 'id' 
+          ? 'Video berhasil diunduh dan diamankan di brankas lokal!' 
+          : 'Video successfully downloaded and secured in local vault!', 
+        'fa-circle-check'
+      );
+
+    } catch (error) {
+      console.error('Download background gagal:', error);
+      // Jika gagal, user masih bisa menontonnya via stream online
+      showToast(
+        lang === 'id' 
+          ? 'Gagal mengunduh offline. Video akan menggunakan streaming online.' 
+          : 'Failed to download offline. Video will use online streaming.', 
+        'fa-triangle-exclamation'
+      );
+    }
   };
+  // -------------------------------------------------------------
 
   const handleTogglePin = (id) => {
     setArchives(prev => prev.map(item => item.id === id ? { ...item, isPinned: !item.isPinned } : item));
