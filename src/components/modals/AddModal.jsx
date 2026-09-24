@@ -7,11 +7,14 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
   // State untuk menyimpan riwayat Creator
   const [creatorHistory, setCreatorHistory] = useState([]); 
   const [showCreatorHistory, setShowCreatorHistory] = useState(false); 
+
+  // State untuk Custom Dropdown Folder
+  const [isFolderOpen, setIsFolderOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
     creator: '',
-    folder: '',
+    folder: 'Umum',
     note: '',
     thumbnail: '',
     videoUrl: '',
@@ -31,7 +34,8 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
         }
       }
     } else {
-        setShowCreatorHistory(false); // Sembunyikan dropdown saat modal ditutup
+        setShowCreatorHistory(false); 
+        setIsFolderOpen(false); // Reset dropdown folder saat modal tutup
     }
   }, [isOpen]);
 
@@ -47,8 +51,6 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
     setLoading(true);
 
     try {
-      // PERUBAHAN NOMOR 1: Tembak ke Serverless Function internal Vercel kita
-      // bukan lagi langsung ke https://www.tikwm.com/api/
       const apiUrl = `/api/fetch-video?url=${encodeURIComponent(url.trim())}`;
       const response = await fetch(apiUrl);
 
@@ -58,11 +60,9 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
 
       const result = await response.json();
 
-      // Validasi response (code === 0 menandakan ekstraksi sukses)
       if (result && result.code === 0 && result.data) {
         const data = result.data;
 
-        // Helper untuk menyambung path jika TikWM mengembalikan URL relatif (diawali '/')
         const fixUrl = (path) => {
           if (!path) return '';
           return path.startsWith('/') ? `https://www.tikwm.com${path}` : path;
@@ -76,7 +76,6 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
           ? `${data.music_info.title} - ${data.music_info.author}` 
           : (data.music || 'Original Sound');
 
-        // Update form state dengan data asli dari TikWM
         setFormData(prev => ({
           ...prev,
           title: extractedTitle,
@@ -104,7 +103,6 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
     e.preventDefault();
     if (!formData.title) return;
 
-    // Simpan Creator ke riwayat saat tombol save diklik
     if (formData.creator.trim()) {
         const newHistory = [formData.creator.trim(), ...creatorHistory.filter(h => h !== formData.creator.trim())].slice(0, 5);
         setCreatorHistory(newHistory);
@@ -125,7 +123,7 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
     setFormData({
       title: '',
       creator: '',
-      folder: '',
+      folder: 'Umum',
       note: '',
       thumbnail: '',
       videoUrl: '',
@@ -139,22 +137,28 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
       setShowCreatorHistory(false);
   };
 
+  const handleSelectFolder = (folderName) => {
+    setFormData({ ...formData, folder: folderName });
+    setIsFolderOpen(false);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
       <div className="bg-zinc-800 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="p-6 flex items-center justify-between bg-zinc-850 shadow-sm">
+        
+        {/* Header Modal */}
+        <div className="p-6 flex items-center justify-between bg-zinc-800/80 shadow-sm">
           <div>
-            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+            <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
               <i className="fa-solid fa-cloud-arrow-down text-emerald-400"></i>
               <span>{t?.addTitle || 'Fetch & Extract TikTok'}</span>
             </h3>
-            <p className="text-xs text-zinc-400 mt-0.5">{t?.addSub || 'Automatic extraction of metadata & MP4 media'}</p>
+            <p className="text-xs text-zinc-400 mt-1">{t?.addSub || 'Automatic extraction of metadata & MP4 media'}</p>
           </div>
           <button 
             type="button"
             onClick={onClose} 
-            className="w-8 h-8 flex items-center justify-center rounded-2xl bg-zinc-900 text-zinc-400 hover:text-white transition-all cursor-pointer"
+            className="w-8 h-8 flex items-center justify-center rounded-2xl bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
           >
             <i className="fa-solid fa-xmark"></i>
           </button>
@@ -163,7 +167,7 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
         {/* Content Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto no-scrollbar bg-zinc-800">
           
-          {/* TikTok URL + Fetch Button (Dikembalikan ke semula) */}
+          {/* TikTok URL + Fetch Button */}
           <div>
             <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addUrlLabel || 'TikTok Video URL'}</label>
             <div className="flex gap-2">
@@ -172,7 +176,7 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
                 value={url} 
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://www.tiktok.com/@user/video/..." 
-                className="flex-1 bg-zinc-900 text-xs text-white p-3.5 rounded-2xl border-none outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-inner" 
+                className="flex-1 bg-zinc-900/50 text-xs text-white p-3.5 rounded-2xl outline-none focus:bg-zinc-900/80 focus:ring-1 focus:ring-emerald-500/40 transition-all shadow-sm" 
               />
               <button 
                 type="button" 
@@ -193,7 +197,7 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
               value={formData.title} 
               onChange={(e) => setFormData({ ...formData, title: e.target.value })} 
               placeholder={t?.inputTitlePlaceholder || 'TikTok video title...'} 
-              className="w-full bg-zinc-900 text-xs text-white p-3.5 rounded-2xl border-none outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-inner" 
+              className="w-full bg-zinc-900/50 text-xs text-white p-3.5 rounded-2xl outline-none focus:bg-zinc-900/80 focus:ring-1 focus:ring-emerald-500/40 transition-all shadow-sm" 
               required 
             />
           </div>
@@ -213,18 +217,18 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
                         setShowCreatorHistory(true);
                     }} 
                     onFocus={() => setShowCreatorHistory(true)}
-                    onBlur={() => setTimeout(() => setShowCreatorHistory(false), 200)} // Delay agar item bisa diklik
+                    onBlur={() => setTimeout(() => setShowCreatorHistory(false), 200)}
                     placeholder={t?.inputCreatorPlaceholder || '@username'} 
-                    className="w-full bg-zinc-900 text-xs text-white p-3.5 rounded-2xl border-none outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-inner" 
+                    className="w-full bg-zinc-900/50 text-xs text-white p-3.5 rounded-2xl outline-none focus:bg-zinc-900/80 focus:ring-1 focus:ring-emerald-500/40 transition-all shadow-sm" 
                   />
                   {/* Dropdown Riwayat Creator */}
                   {showCreatorHistory && creatorHistory.length > 0 && (
-                      <div className="absolute top-full left-0 mt-1 w-full bg-zinc-900 rounded-xl shadow-lg border border-zinc-700/50 overflow-hidden z-10">
+                      <div className="absolute top-full left-0 mt-1 w-full bg-zinc-900 rounded-2xl shadow-xl overflow-hidden z-10 border-none">
                           {creatorHistory.map((item, index) => (
                               <div 
                                   key={index} 
                                   onClick={() => handleCreatorHistoryClick(item)}
-                                  className="px-4 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer truncate border-b border-zinc-800 last:border-b-0"
+                                  className="px-4 py-2.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer truncate transition-all"
                               >
                                   {item}
                               </div>
@@ -234,19 +238,41 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
               </div>
             </div>
 
-            <div>
+            {/* Custom Soft Dropdown Folder */}
+            <div className="relative">
               <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addFolderLabel || 'Collection Folder'}</label>
-              <select 
-                value={formData.folder} 
-                onChange={(e) => setFormData({ ...formData, folder: e.target.value })} 
-                className="w-full bg-zinc-900 text-xs text-zinc-200 p-3.5 rounded-2xl border-none outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-inner appearance-none cursor-pointer"
+              
+              <button
+                type="button"
+                onClick={() => setIsFolderOpen(!isFolderOpen)}
+                className="w-full bg-zinc-900/50 text-xs text-zinc-200 p-3.5 rounded-2xl outline-none focus:bg-zinc-900/80 flex items-center justify-between cursor-pointer transition-all shadow-sm"
               >
-                <option value="Umum">Umum</option>
-                {userFolders && userFolders.map(f => (
-                  <option key={f.id} value={f.name}>{f.name}</option>
-                ))}
-              </select>
+                <span className="truncate">{formData.folder || 'Umum'}</span>
+                <i className={`fa-solid fa-chevron-down text-zinc-400 text-[10px] transition-transform duration-200 ${isFolderOpen ? 'rotate-180' : ''}`}></i>
+              </button>
+
+              {/* Menu Options Custom Dropdown */}
+              {isFolderOpen && (
+                <div className="absolute top-full left-0 mt-1.5 w-full bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden z-20 border-none p-1 space-y-0.5">
+                  <div 
+                    onClick={() => handleSelectFolder('Umum')}
+                    className={`px-4 py-2.5 text-xs rounded-xl cursor-pointer transition-all ${formData.folder === 'Umum' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-300 hover:bg-zinc-800/60 hover:text-white'}`}
+                  >
+                    Umum
+                  </div>
+                  {userFolders && userFolders.map(f => (
+                    <div 
+                      key={f.id}
+                      onClick={() => handleSelectFolder(f.name)}
+                      className={`px-4 py-2.5 text-xs rounded-xl cursor-pointer transition-all ${formData.folder === f.name ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-300 hover:bg-zinc-800/60 hover:text-white'}`}
+                    >
+                      {f.name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
 
           {/* Note */}
@@ -257,16 +283,16 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
               value={formData.note} 
               onChange={(e) => setFormData({ ...formData, note: e.target.value })} 
               placeholder={t?.inputNotePlaceholder || 'Personal notes...'} 
-              className="w-full bg-zinc-900 text-xs text-white p-3.5 rounded-2xl border-none outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-inner resize-none"
+              className="w-full bg-zinc-900/50 text-xs text-white p-3.5 rounded-2xl outline-none focus:bg-zinc-900/80 focus:ring-1 focus:ring-emerald-500/40 transition-all shadow-sm resize-none"
             ></textarea>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4">
+          <div className="flex items-center justify-end gap-3 pt-4 mt-4">
             <button 
               type="button" 
               onClick={onClose} 
-              className="bg-zinc-900 hover:bg-zinc-750 text-zinc-300 px-6 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer"
+              className="bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 px-6 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer"
             >
               {t?.btnCancel || 'Cancel'}
             </button>

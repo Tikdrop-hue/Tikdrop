@@ -75,11 +75,11 @@ export default function Toolbar({
       {/* Control Actions */}
       <div className="flex items-center gap-3 shrink-0">
         
-        {/* Custom Dropdown Sort */}
+        {/* Custom Dropdown Sort - Diserasikan bg-nya */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-2 bg-zinc-900 text-zinc-300 text-sm font-medium px-4 py-2 rounded-xl hover:bg-zinc-700 transition-colors cursor-pointer outline-none"
+            className="flex items-center gap-2 bg-zinc-900/50 hover:bg-zinc-900/80 text-zinc-300 text-sm font-medium px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer outline-none"
           >
             {sortOrder === 'newest' ? t.sortNewest || 'Newest' : t.sortOldest || 'Oldest'}
             <i className={`fa-solid fa-chevron-down text-xs text-zinc-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
@@ -90,7 +90,7 @@ export default function Toolbar({
               <button
                 onClick={() => { setSortOrder('newest'); setIsDropdownOpen(false); }}
                 className={`w-full text-left px-4 py-2.5 text-sm rounded-xl transition-all cursor-pointer ${
-                  sortOrder === 'newest' ? 'bg-zinc-900/80 text-emerald-400 font-semibold' : 'text-zinc-300 hover:bg-zinc-700'
+                  sortOrder === 'newest' ? 'bg-zinc-900/80 text-emerald-400 font-semibold' : 'text-zinc-300 hover:bg-zinc-700/50'
                 }`}
               >
                 {t.sortNewest || 'Newest'}
@@ -98,7 +98,7 @@ export default function Toolbar({
               <button
                 onClick={() => { setSortOrder('oldest'); setIsDropdownOpen(false); }}
                 className={`w-full text-left px-4 py-2.5 text-sm rounded-xl transition-all cursor-pointer ${
-                  sortOrder === 'oldest' ? 'bg-zinc-900/80 text-emerald-400 font-semibold' : 'text-zinc-300 hover:bg-zinc-700'
+                  sortOrder === 'oldest' ? 'bg-zinc-900/80 text-emerald-400 font-semibold' : 'text-zinc-300 hover:bg-zinc-700/50'
                 }`}
               >
                 {t.sortOldest || 'Oldest'}
@@ -107,33 +107,33 @@ export default function Toolbar({
           )}
         </div>
 
-        {/* View Mode Toggles */}
-        <div className="flex bg-zinc-900 rounded-xl p-1 gap-1">
+        {/* View Mode Toggles - Diserasikan bg-nya */}
+        <div className="flex bg-zinc-900/50 p-1 rounded-2xl gap-1">
           <button
             onClick={() => setViewMode('grid')}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
-              viewMode === 'grid' ? 'bg-zinc-700 text-emerald-400 shadow' : 'text-zinc-500 hover:text-zinc-300'
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer ${
+              viewMode === 'grid' ? 'bg-zinc-900 text-emerald-400 shadow-md' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50'
             }`}
           >
             <i className="fa-solid fa-border-all"></i>
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
-              viewMode === 'list' ? 'bg-zinc-700 text-emerald-400 shadow' : 'text-zinc-500 hover:text-zinc-300'
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer ${
+              viewMode === 'list' ? 'bg-zinc-900 text-emerald-400 shadow-md' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50'
             }`}
           >
             <i className="fa-solid fa-list"></i>
           </button>
         </div>
 
-        {/* Batch Action Toggle */}
+        {/* Batch Action Toggle - Diserasikan bg-nya saat tidak aktif */}
         <button
           onClick={() => setIsBatchMode(!isBatchMode)}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+          className={`px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-300 cursor-pointer flex items-center gap-2 ${
             isBatchMode 
-              ? 'bg-emerald-500 text-zinc-950 shadow-md' 
-              : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+              ? 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20' 
+              : 'bg-zinc-900/50 hover:bg-zinc-900/80 text-zinc-400 hover:text-white'
           }`}
         >
           <i className="fa-solid fa-check-double"></i> 

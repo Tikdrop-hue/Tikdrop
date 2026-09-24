@@ -78,7 +78,6 @@ export default function PlayerModal({
     setIsDropdownOpen(false);
   };
 
-  // --- LOGIKA UNDUH FISIK (Opsi 3) ---
   const handleDownloadPhysical = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
@@ -88,7 +87,6 @@ export default function PlayerModal({
       let blob = await localforage.getItem(`video_blob_${activeVideo.id}`);
       const targetUrl = activeVideo.videoUrl || activeVideo.playUrl || activeVideo.src;
 
-      // Jika blob belum ada di IndexedDB, kita sedot dulu pakai proxy
       if (!blob && targetUrl) {
          const proxyUrl = `/api/download-video?videoUrl=${encodeURIComponent(targetUrl)}`;
          const response = await fetch(proxyUrl);
@@ -117,7 +115,6 @@ export default function PlayerModal({
       setIsDownloading(false);
     }
   };
-  // -----------------------------------
 
   const activeFolderObj = userFolders.find(f => {
     const fId = typeof f === 'object' ? f.id : f;
@@ -141,17 +138,20 @@ export default function PlayerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md">
-      <div className="bg-zinc-900 w-full max-w-5xl h-[90vh] md:h-[620px] rounded-[2rem] overflow-hidden flex flex-col md:flex-row shadow-2xl relative border border-zinc-800/80">
+      {/* Modal Container */}
+      <div className="bg-zinc-900 w-full max-w-4xl h-[90vh] md:h-[660px] rounded-[2rem] overflow-hidden flex flex-col md:flex-row shadow-2xl relative border border-zinc-800/80">
         
+        {/* Tombol Tutup */}
         <button 
           onClick={onClose} 
-          className="absolute top-4 right-4 z-20 w-10 h-10 bg-zinc-800/80 backdrop-blur-sm text-zinc-300 rounded-full flex items-center justify-center hover:bg-emerald-500 hover:text-zinc-950 transition-all shadow-lg cursor-pointer"
+          className="absolute top-4 right-4 z-20 w-10 h-10 bg-zinc-800/80 backdrop-blur-sm text-zinc-300 rounded-full flex items-center justify-center hover:bg-emerald-500 hover:text-zinc-950 transition-all duration-300 shadow-lg cursor-pointer"
         >
           <i className="fa-solid fa-xmark text-lg"></i>
         </button>
 
-        <div className="w-full aspect-[9/16] md:aspect-auto md:w-[349px] bg-black relative flex items-center justify-center shrink-0">
-          <div className="absolute top-4 left-4 z-20 px-2 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-[10px] text-white font-bold flex gap-1.5 items-center shadow-lg">
+        {/* Pemutar Video */}
+        <div className="w-full aspect-[9/16] md:aspect-auto md:w-[371px] bg-black relative flex items-center justify-center shrink-0">
+          <div className="absolute top-4 left-4 z-20 px-2.5 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-[10px] text-white font-bold flex gap-1.5 items-center shadow-lg">
             {mediaStatus === 'True Offline (Aman)' && <i className="fa-solid fa-lock text-emerald-400"></i>}
             {mediaStatus === 'Online Cloud' && !mediaError && <i className="fa-solid fa-cloud text-blue-400"></i>}
             {mediaError && <i className="fa-solid fa-skull-crossbones text-red-500"></i>}
@@ -182,15 +182,16 @@ export default function PlayerModal({
           )}
         </div>
 
-        <div className="flex-1 bg-zinc-900 p-6 sm:p-8 flex flex-col overflow-y-auto">
+        {/* Panel Informasi & Catatan */}
+        <div className="flex-1 min-w-0 bg-zinc-900 p-6 sm:p-7 flex flex-col overflow-y-auto">
           
-          <div className="mb-6">
-            <h2 className="text-xl font-black text-white leading-snug tracking-tight mb-2 pr-10">
+          {/* Header Info Video */}
+          <div className="mb-5">
+            <h2 className="text-xl font-black text-white leading-snug tracking-tight mb-2 pr-10 line-clamp-2">
               {activeVideo.title || (lang === 'id' ? 'Tanpa Judul' : 'Untitled Video')}
             </h2>
             <div className="flex items-center gap-2">
-              <span className="bg-zinc-800 text-emerald-400 px-3 py-1 rounded-lg text-sm font-semibold tracking-wide">
-                {/* PERBAIKAN LOGIKA @: Cek apakah nama sudah diawali @ atau belum */}
+              <span className="bg-zinc-800/60 border border-zinc-700/30 text-emerald-400 px-3 py-1 rounded-lg text-sm font-semibold tracking-wide">
                 {activeVideo.creator?.startsWith('@') ? activeVideo.creator : `@${activeVideo.creator || 'unknown'}`}
               </span>
               <a 
@@ -205,6 +206,7 @@ export default function PlayerModal({
             </div>
           </div>
 
+          {/* Selector Folder (Diserap ke bg-zinc-800/50 agar soft) */}
           <div className="mb-5 relative" ref={dropdownRef}>
             <label className="flex items-center text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
               <i className="fa-solid fa-folder-tree mr-2"></i> 
@@ -213,7 +215,7 @@ export default function PlayerModal({
             
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm font-medium rounded-2xl px-5 py-3.5 flex items-center justify-between hover:border-emerald-500/50 hover:bg-black transition-all cursor-pointer outline-none shadow-inner"
+              className="w-full bg-zinc-800/50 border border-zinc-700/40 text-zinc-200 text-sm font-medium rounded-2xl px-4 py-3 flex items-center justify-between hover:bg-zinc-800/80 hover:border-emerald-500/40 transition-all duration-300 cursor-pointer outline-none shadow-sm"
             >
               <span className="truncate">{activeFolderName}</span>
               <i className={`fa-solid fa-chevron-down text-zinc-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
@@ -223,10 +225,10 @@ export default function PlayerModal({
               <div className="absolute left-0 right-0 top-[105%] bg-zinc-800 border border-zinc-700/50 rounded-2xl shadow-xl overflow-hidden z-30 flex flex-col p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
                 <button
                   onClick={() => handleSelectFolder('All')}
-                  className={`text-left px-4 py-3 text-sm rounded-xl transition-all cursor-pointer ${
+                  className={`text-left px-4 py-2.5 text-sm rounded-xl transition-all cursor-pointer ${
                     activeVideo.folder === 'All' || !activeVideo.folder 
                       ? 'bg-emerald-500/10 text-emerald-400 font-bold' 
-                      : 'text-zinc-300 hover:bg-zinc-700'
+                      : 'text-zinc-300 hover:bg-zinc-700/50'
                   }`}
                 >
                   {lang === 'id' ? 'Semua Video (Tanpa Folder)' : 'All Videos (No Folder)'}
@@ -234,7 +236,7 @@ export default function PlayerModal({
                 
                 {userFolders.length > 0 && <div className="h-px w-full bg-zinc-700/50 my-1"></div>}
                 
-                <div className="max-h-48 overflow-y-auto hide-scrollbar flex flex-col gap-0.5">
+                <div className="max-h-40 overflow-y-auto hide-scrollbar flex flex-col gap-0.5">
                   {userFolders.map(folder => {
                     const fId = typeof folder === 'object' ? folder.id : folder;
                     const fName = typeof folder === 'object' ? folder.name : folder;
@@ -244,8 +246,8 @@ export default function PlayerModal({
                       <button
                         key={fId}
                         onClick={() => handleSelectFolder(fId)}
-                        className={`text-left px-4 py-3 text-sm rounded-xl transition-all cursor-pointer ${
-                          isSelected ? 'bg-emerald-500/10 text-emerald-400 font-bold' : 'text-zinc-300 hover:bg-zinc-700'
+                        className={`text-left px-4 py-2.5 text-sm rounded-xl transition-all cursor-pointer ${
+                          isSelected ? 'bg-emerald-500/10 text-emerald-400 font-bold' : 'text-zinc-300 hover:bg-zinc-700/50'
                         }`}
                       >
                         {fName}
@@ -257,7 +259,8 @@ export default function PlayerModal({
             )}
           </div>
 
-          <div className="flex-1 flex flex-col mb-4">
+          {/* Catatan Pribadi (Soft Textarea) */}
+          <div className="flex-1 flex flex-col mb-5">
             <label className="flex items-center text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
               <i className="fa-solid fa-pen-to-square mr-2"></i> 
               {lang === 'id' ? 'Catatan Pribadi' : 'Personal Note'}
@@ -266,19 +269,19 @@ export default function PlayerModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={lang === 'id' ? 'Tulis ide, hashtag, atau catatan penting...' : 'Write ideas, hashtags, or notes...'}
-              className="w-full flex-1 min-h-[100px] bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm rounded-2xl px-5 py-4 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none transition-all shadow-inner"
+              className="w-full flex-1 min-h-[90px] bg-zinc-800/50 border border-zinc-700/40 text-zinc-200 text-sm rounded-2xl px-4 py-3 outline-none focus:border-emerald-500 focus:bg-zinc-800/80 focus:ring-1 focus:ring-emerald-500 resize-none transition-all duration-300 shadow-sm"
             ></textarea>
           </div>
 
-          {/* Tombol Aksi */}
-          <div className="mt-auto shrink-0 flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-3">
+          {/* Tombol Aksi (Soft & Konsisten) */}
+          <div className="mt-auto shrink-0 flex flex-col gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={() => onTogglePin(activeVideo.id)}
-                className={`py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                className={`py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer ${
                   activeVideo.isPinned 
                     ? 'bg-zinc-800 text-emerald-400 border border-emerald-500/30 shadow-inner' 
-                    : 'bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
+                    : 'bg-zinc-800/50 border border-zinc-700/40 text-zinc-300 hover:text-white hover:bg-zinc-800/80'
                 }`}
               >
                 <i className={`fa-solid fa-thumbtack ${activeVideo.isPinned ? '-rotate-45' : ''} transition-transform`}></i> 
@@ -286,18 +289,19 @@ export default function PlayerModal({
               </button>
               <button
                 onClick={handleSave}
-                className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+                className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
               >
                 <i className="fa-solid fa-floppy-disk"></i> {lang === 'id' ? 'Simpan Catatan' : 'Save Note'}
               </button>
             </div>
             
-            {/* Opsi 3: Tombol Unduh ke Perangkat Fisik */}
             <button
               onClick={handleDownloadPhysical}
               disabled={isDownloading}
-              className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer border border-zinc-800 
-                ${isDownloading ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-zinc-950 text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+              className={`w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer border 
+                ${isDownloading 
+                  ? 'bg-zinc-800/40 border border-zinc-800/50 text-zinc-500 cursor-not-allowed' 
+                  : 'bg-zinc-800/50 border-zinc-700/40 text-zinc-300 hover:bg-zinc-800/80 hover:text-white'}`}
             >
               <i className={`fa-solid ${isDownloading ? 'fa-spinner fa-spin' : 'fa-download'}`}></i> 
               {isDownloading ? (lang === 'id' ? 'Mengunduh...' : 'Downloading...') : (lang === 'id' ? 'Unduh .mp4 ke Perangkat' : 'Download .mp4 to Device')}

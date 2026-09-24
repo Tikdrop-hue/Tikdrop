@@ -132,7 +132,18 @@ export const i18nDict = {
     tutPrivacy2Desc2: "jika Anda menghapus data situs (Clear Cache/Clear Data/Uninstall Browser)",
     tutPrivacy2Desc3: ", maka seluruh arsip dan video offline Anda akan ikut musnah secara permanen.",
     tutPrivacy2Desc4: "Biasakan untuk melakukan Export secara berkala ke tempat yang aman.",
-    tutDocsVersion: "TikDrop Vault Docs Version 4.0"
+    tutDocsVersion: "TikDrop Vault Docs Version 4.0",
+
+    // --- NEW: Onboarding (Get.jsx) Content ---
+    getWelcomeTitle: "Selamat Datang di Vault",
+    getWelcomeSub: "Arsip Pribadi & Brankas Offline untuk menyimpan koleksi TikTok favorit Anda tanpa watermark.",
+    getBtnStart: "Masuk ke Vault",
+    getFeature1Title: "Kualitas Asli & Bersih",
+    getFeature1Desc: "Ekstrak dan simpan video tanpa watermark.",
+    getFeature2Title: "Brankas True Offline",
+    getFeature2Desc: "Video diamankan di memori peramban. Tahan terhadap penghapusan tautan sumber.",
+    getFeature3Title: "100% Privat & Aman",
+    getFeature3Desc: "Tanpa server cloud. Data Anda sepenuhnya milik Anda.",
   },
   en: {
     appSubtitle: "Vault Studio",
@@ -267,6 +278,17 @@ export const i18nDict = {
     tutPrivacy2Desc2: "if you clear site data (Clear Cache/Uninstall Browser)",
     tutPrivacy2Desc3: ", all your archives and offline videos will be permanently destroyed.",
     tutPrivacy2Desc4: "Make it a habit to Export regularly to a safe place.",
-    tutDocsVersion: "TikDrop Vault Docs Version 4.0"
+    tutDocsVersion: "TikDrop Vault Docs Version 4.0",
+
+    // --- NEW: Onboarding (Get.jsx) Content ---
+    getWelcomeTitle: "Welcome to Vault",
+    getWelcomeSub: "Personal Archive & Offline Vault to store your favorite TikTok collection without watermarks.",
+    getBtnStart: "Enter Vault",
+    getFeature1Title: "Original & Clean Quality",
+    getFeature1Desc: "Extract and save videos without any watermark.",
+    getFeature2Title: "True Offline Vault",
+    getFeature2Desc: "Videos are secured in browser memory. Immune to source link deletion.",
+    getFeature3Title: "100% Private & Secure",
+    getFeature3Desc: "No cloud servers. Your data is exclusively yours.",
   }
 };

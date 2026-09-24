@@ -14,6 +14,7 @@ import AddModal from './components/modals/AddModal';
 import FolderModal from './components/modals/FolderModal';
 import StatsModal from './components/modals/StatsModal';
 import TutorialModal from './components/modals/TutorialModal';
+import Get from './components/Get'; // Import komponen gateway baru
 
 import { i18nDict } from './constants/i18n';
 
@@ -60,6 +61,9 @@ export default function App() {
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
 
+  // State untuk Gateway/Onboarding (Get.jsx)
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
   // Toast State
   const [toast, setToast] = useState({ show: false, message: '', icon: 'fa-check' });
   const toastTimeoutRef = useRef(null);
@@ -86,6 +90,19 @@ export default function App() {
 
     loadData();
   }, []);
+
+  // Mengecek apakah user sudah pernah membuka web (menampilkan Get.jsx sekali saja)
+  useEffect(() => {
+    const hasVisited = localStorage.getItem('tikdrop_has_visited');
+    if (!hasVisited) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const handleCompleteOnboarding = () => {
+    localStorage.setItem('tikdrop_has_visited', 'true');
+    setShowOnboarding(false);
+  };
 
   // 2. MENYIMPAN DATA KE INDEXEDDB SETIAP KALI STATE BERUBAH
   useEffect(() => {
@@ -408,130 +425,142 @@ export default function App() {
   };
 
   return (
-    <div className="bg-zinc-900 text-zinc-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-zinc-950 overflow-x-hidden">
-      <Navbar
-        t={t}
-        lang={lang}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        archives={archives}
-        showFavoritesOnly={showFavoritesOnly}
-        setShowFavoritesOnly={setShowFavoritesOnly}
-        onResetFilter={() => { setActiveFolder('All'); setShowFavoritesOnly(false); setSearchQuery(''); }}
-        onOpenAdd={() => setIsAddOpen(true)}
-        onOpenFolder={() => setIsFolderOpen(true)}
-        onOpenTutorial={() => setIsTutorialOpen(true)}
-        onOpenStats={() => setIsStatsOpen(true)}
-        onToggleLang={handleToggleLang}
-      />
-
-      <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col justify-between">
-        <div>
-          <Toolbar
-            t={t}
-            userFolders={userFolders}
-            activeFolder={activeFolder}
-            setActiveFolder={setActiveFolder}
-            showFavoritesOnly={showFavoritesOnly}
-            filteredCount={filteredArchives.length}
-            isBatchMode={isBatchMode}
-            setIsBatchMode={(val) => { setIsBatchMode(val); setSelectedBatchIds(new Set()); }}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            sortOrder={sortOrder}
-            setSortOrder={setSortOrder}
-            onResetFilters={() => { setActiveFolder('All'); setShowFavoritesOnly(false); setSearchQuery(''); }}
-          />
-
-          {filteredArchives.length === 0 ? (
-            <EmptyState t={t} onOpenAdd={() => setIsAddOpen(true)} />
-          ) : (
-            <section className={viewMode === 'list' ? 'flex flex-col gap-3' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'}>
-              {filteredArchives.map(item => (
-                <VideoCard
-                  key={item.id}
-                  item={item}
-                  viewMode={viewMode}
-                  isBatchMode={isBatchMode}
-                  isSelected={selectedBatchIds.has(item.id)}
-                  onClick={handleCardClick}
-                />
-              ))}
-            </section>
-          )}
-        </div>
-
-        <Footer 
-          t={t} 
-          lang={lang}
-          onExportJSON={handleExportJSON} 
-          onImportJSON={handleImportJSON} 
-          onExportZIP={handleExportZIP} 
+    <>
+      {/* --- INI BAGIAN YANG DIPERBAIKI --- */}
+      {/* Tampilan Gateway Onboarding, menutupi layar sepenuhnya ketika state showOnboarding bernilai true */}
+      {showOnboarding && (
+        <Get 
+          onComplete={handleCompleteOnboarding} 
+          lang={lang} 
+          onToggleLang={handleToggleLang} 
         />
-      </main>
+      )}
 
-      <BatchBar
-        count={selectedBatchIds.size}
-        t={t}
-        userFolders={userFolders}
-        onMoveFolder={handleBatchMoveFolder}
-        onDelete={() => {
-          setArchives(prev => prev.filter(i => !selectedBatchIds.has(i.id)));
-          setSelectedBatchIds(new Set());
-          setIsBatchMode(false);
-          showToast(lang === 'id' ? 'Video berhasil dihapus!' : 'Videos deleted!', 'fa-trash-can');
-        }}
-        onCancel={() => { setIsBatchMode(false); setSelectedBatchIds(new Set()); }}
-      />
+      <div className="bg-zinc-900 text-zinc-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-zinc-950 overflow-x-hidden">
+        <Navbar
+          t={t}
+          lang={lang}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          archives={archives}
+          showFavoritesOnly={showFavoritesOnly}
+          setShowFavoritesOnly={setShowFavoritesOnly}
+          onResetFilter={() => { setActiveFolder('All'); setShowFavoritesOnly(false); setSearchQuery(''); }}
+          onOpenAdd={() => setIsAddOpen(true)}
+          onOpenFolder={() => setIsFolderOpen(true)}
+          onOpenTutorial={() => setIsTutorialOpen(true)}
+          onOpenStats={() => setIsStatsOpen(true)}
+          onToggleLang={handleToggleLang}
+        />
 
-      {/* Modals */}
-      <PlayerModal
-        activeVideo={archives.find(i => i.id === activeVideoId)}
-        t={t}
-        lang={lang}
-        userFolders={userFolders}
-        onClose={() => setActiveVideoId(null)}
-        onTogglePin={handleTogglePin}
-        onSaveNote={handleSaveNote}
-        onMoveFolder={handleMoveFolder}
-        onShowToast={showToast}
-      />
+        <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col justify-between">
+          <div>
+            <Toolbar
+              t={t}
+              userFolders={userFolders}
+              activeFolder={activeFolder}
+              setActiveFolder={setActiveFolder}
+              showFavoritesOnly={showFavoritesOnly}
+              filteredCount={filteredArchives.length}
+              isBatchMode={isBatchMode}
+              setIsBatchMode={(val) => { setIsBatchMode(val); setSelectedBatchIds(new Set()); }}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              sortOrder={sortOrder}
+              setSortOrder={setSortOrder}
+              onResetFilters={() => { setActiveFolder('All'); setShowFavoritesOnly(false); setSearchQuery(''); }}
+            />
 
-      <AddModal
-        isOpen={isAddOpen}
-        t={t}
-        lang={lang}
-        userFolders={userFolders}
-        onClose={() => setIsAddOpen(false)}
-        onSave={handleSaveVideo}
-        onShowToast={showToast}
-      />
+            {filteredArchives.length === 0 ? (
+              <EmptyState t={t} onOpenAdd={() => setIsAddOpen(true)} />
+            ) : (
+              <section className={viewMode === 'list' ? 'flex flex-col gap-3' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'}>
+                {filteredArchives.map(item => (
+                  <VideoCard
+                    key={item.id}
+                    item={item}
+                    viewMode={viewMode}
+                    isBatchMode={isBatchMode}
+                    isSelected={selectedBatchIds.has(item.id)}
+                    onClick={handleCardClick}
+                  />
+                ))}
+              </section>
+            )}
+          </div>
 
-      <FolderModal
-        isOpen={isFolderOpen}
-        t={t}
-        userFolders={userFolders}
-        setUserFolders={(folders) => setUserFolders(normalizeFolders(folders))}
-        onRenameFolder={handleRenameFolder}
-        onClose={() => setIsFolderOpen(false)}
-        onShowToast={showToast}
-      />
+          <Footer 
+            t={t} 
+            lang={lang}
+            onExportJSON={handleExportJSON} 
+            onImportJSON={handleImportJSON} 
+            onExportZIP={handleExportZIP} 
+          />
+        </main>
 
-      <StatsModal
-        isOpen={isStatsOpen}
-        t={t}
-        archives={archives}
-        userFolders={userFolders}
-        onClose={() => setIsStatsOpen(false)}
-      />
+        <BatchBar
+          count={selectedBatchIds.size}
+          t={t}
+          userFolders={userFolders}
+          onMoveFolder={handleBatchMoveFolder}
+          onDelete={() => {
+            setArchives(prev => prev.filter(i => !selectedBatchIds.has(i.id)));
+            setSelectedBatchIds(new Set());
+            setIsBatchMode(false);
+            showToast(lang === 'id' ? 'Video berhasil dihapus!' : 'Videos deleted!', 'fa-trash-can');
+          }}
+          onCancel={() => { setIsBatchMode(false); setSelectedBatchIds(new Set()); }}
+        />
 
-      <TutorialModal
-        isOpen={isTutorialOpen}
-        t={t}
-        onClose={() => setIsTutorialOpen(false)}
-      />
+        {/* Modals */}
+        <PlayerModal
+          activeVideo={archives.find(i => i.id === activeVideoId)}
+          t={t}
+          lang={lang}
+          userFolders={userFolders}
+          onClose={() => setActiveVideoId(null)}
+          onTogglePin={handleTogglePin}
+          onSaveNote={handleSaveNote}
+          onMoveFolder={handleMoveFolder}
+          onShowToast={showToast}
+        />
 
-      <Toast toast={toast} />
-    </div>
+        <AddModal
+          isOpen={isAddOpen}
+          t={t}
+          lang={lang}
+          userFolders={userFolders}
+          onClose={() => setIsAddOpen(false)}
+          onSave={handleSaveVideo}
+          onShowToast={showToast}
+        />
+
+        <FolderModal
+          isOpen={isFolderOpen}
+          t={t}
+          userFolders={userFolders}
+          setUserFolders={(folders) => setUserFolders(normalizeFolders(folders))}
+          onRenameFolder={handleRenameFolder}
+          onClose={() => setIsFolderOpen(false)}
+          onShowToast={showToast}
+        />
+
+        <StatsModal
+          isOpen={isStatsOpen}
+          t={t}
+          archives={archives}
+          userFolders={userFolders}
+          onClose={() => setIsStatsOpen(false)}
+        />
+
+        <TutorialModal
+          isOpen={isTutorialOpen}
+          t={t}
+          onClose={() => setIsTutorialOpen(false)}
+        />
+
+        <Toast toast={toast} />
+      </div>
+    </>
   );
 }

@@ -27,7 +27,8 @@ export default function Footer({ t, lang, onExportJSON, onImportJSON, onExportZI
   return (
     <footer className="mt-12 py-8 flex flex-col lg:flex-row items-center justify-between gap-6 text-xs text-zinc-400 bg-zinc-800 rounded-3xl shadow-md px-8">
       <div className="flex items-center gap-3">
-        <div className="w-6 h-6 rounded-lg overflow-hidden bg-zinc-900 flex items-center justify-center">
+        {/* Latar ikon logo disesuaikan menjadi soft */}
+        <div className="w-6 h-6 rounded-lg overflow-hidden bg-zinc-900/50 flex items-center justify-center">
           <img 
             src="https://simp6.cuckcapital.cr/images4/2c19ebc4-a731-486d-ace9-f9a73266cdd6.webp" 
             alt="Logo Footer" 
@@ -47,24 +48,24 @@ export default function Footer({ t, lang, onExportJSON, onImportJSON, onExportZI
           onChange={handleFileChange} 
         />
         
+        {/* Tombol-tombol diubah menjadi bg-zinc-900/50 dan hover:bg-zinc-900/80 */}
         <button 
           onClick={() => fileInputRef.current?.click()} 
-          className="hover:text-sky-400 transition-all flex items-center gap-2 cursor-pointer bg-zinc-900 px-5 py-2.5 rounded-2xl shadow-inner font-bold text-zinc-300 hover:bg-zinc-950"
+          className="flex items-center gap-2 cursor-pointer bg-zinc-900/50 px-5 py-2.5 rounded-2xl shadow-sm font-bold text-zinc-300 hover:text-sky-400 hover:bg-zinc-900/80 transition-all duration-300"
         >
           <i className="fa-solid fa-cloud-arrow-up text-sky-400"></i> {lang === 'id' ? 'Import JSON' : 'Import JSON'}
         </button>
 
         <button 
           onClick={onExportJSON} 
-          className="hover:text-emerald-400 transition-all flex items-center gap-2 cursor-pointer bg-zinc-900 px-5 py-2.5 rounded-2xl shadow-inner font-bold text-zinc-300 hover:bg-zinc-950"
+          className="flex items-center gap-2 cursor-pointer bg-zinc-900/50 px-5 py-2.5 rounded-2xl shadow-sm font-bold text-zinc-300 hover:text-emerald-400 hover:bg-zinc-900/80 transition-all duration-300"
         >
           <i className="fa-solid fa-file-code text-emerald-400"></i> {t.footerBackupJson || (lang === 'id' ? 'Export Data (JSON)' : 'Export Data (JSON)')}
         </button>
         
-        {/* Tombol Baru untuk Ekspor ZIP */}
         <button 
           onClick={onExportZIP} 
-          className="hover:text-amber-400 transition-all flex items-center gap-2 cursor-pointer bg-zinc-900 px-5 py-2.5 rounded-2xl shadow-inner font-bold text-zinc-300 hover:bg-zinc-950"
+          className="flex items-center gap-2 cursor-pointer bg-zinc-900/50 px-5 py-2.5 rounded-2xl shadow-sm font-bold text-zinc-300 hover:text-amber-400 hover:bg-zinc-900/80 transition-all duration-300"
           title={lang === 'id' ? 'Backup seluruh data beserta file video offline' : 'Backup all data including offline video files'}
         >
           <i className="fa-solid fa-file-zipper text-amber-400"></i> {lang === 'id' ? 'Export Full Vault (ZIP)' : 'Export Full Vault (ZIP)'}
