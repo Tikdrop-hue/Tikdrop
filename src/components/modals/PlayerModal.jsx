@@ -76,8 +76,8 @@ export default function PlayerModal({
           <i className="fa-solid fa-xmark text-lg"></i>
         </button>
 
-        {/* Pemutar Video - Border dihapus agar menyatu sempurna */}
-        <div className="w-full md:w-[360px] lg:w-[420px] bg-black relative flex items-center justify-center shrink-0">
+        {/* Pemutar Video - Menggunakan width presisi 349px untuk rasio 9:16 dari tinggi 620px */}
+        <div className="w-full aspect-[9/16] md:aspect-auto md:w-[349px] bg-black relative flex items-center justify-center shrink-0">
           {directVideoSrc ? (
             <video 
               src={directVideoSrc} 
