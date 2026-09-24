@@ -190,7 +190,8 @@ export default function PlayerModal({
             </h2>
             <div className="flex items-center gap-2">
               <span className="bg-zinc-800 text-emerald-400 px-3 py-1 rounded-lg text-sm font-semibold tracking-wide">
-                @{activeVideo.creator || 'unknown'}
+                {/* PERBAIKAN LOGIKA @: Cek apakah nama sudah diawali @ atau belum */}
+                {activeVideo.creator?.startsWith('@') ? activeVideo.creator : `@${activeVideo.creator || 'unknown'}`}
               </span>
               <a 
                 href={activeVideo.url} 
