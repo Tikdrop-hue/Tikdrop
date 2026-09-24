@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import localforage from 'localforage'; // Tambahan import untuk mengambil blob
+import localforage from 'localforage';
 
 export default function PlayerModal({ 
   activeVideo, 
@@ -15,34 +15,27 @@ export default function PlayerModal({
   const [note, setNote] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [mediaError, setMediaError] = useState(false); 
-  
-  // -- TAMBAHAN STATE UNTUK VAULT GUARD & OFFLINE VIDEO --
   const [localVideoUrl, setLocalVideoUrl] = useState(null);
   const [mediaStatus, setMediaStatus] = useState('Checking...');
-  // -------------------------------------------------------
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const dropdownRef = useRef(null);
 
   useEffect(() => {
     if (activeVideo) {
       setNote(activeVideo.note || '');
-      setMediaError(false); // Reset state error saat membuka video baru
+      setMediaError(false);
     }
   }, [activeVideo]);
 
-  // -- TAMBAHAN LOGIKA PENGECEKAN BLOB DI INDEXEDDB --
   useEffect(() => {
     let currentObjectUrl = null;
-    
     const checkOfflineMedia = async () => {
         if (activeVideo) {
             setMediaStatus('Checking...');
             try {
-                // Cari blob video berdasarkan ID
                 const blob = await localforage.getItem(`video_blob_${activeVideo.id}`);
-                
                 if (blob) {
-                    // Buat link lokal untuk diputar dari blob
                     currentObjectUrl = URL.createObjectURL(blob);
                     setLocalVideoUrl(currentObjectUrl);
                     setMediaStatus('True Offline (Aman)');
@@ -57,15 +50,11 @@ export default function PlayerModal({
             }
         }
     };
-    
     checkOfflineMedia();
-    
-    // Cleanup memory saat tutup modal atau ganti video agar tidak memori leak
     return () => {
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     };
   }, [activeVideo]);
-  // ----------------------------------------------------
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -89,7 +78,47 @@ export default function PlayerModal({
     setIsDropdownOpen(false);
   };
 
-  // Mencari nama folder aktif
+  // --- LOGIKA UNDUH FISIK (Opsi 3) ---
+  const handleDownloadPhysical = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    onShowToast(lang === 'id' ? 'Menyiapkan file video...' : 'Preparing video file...', 'fa-spinner fa-spin');
+    
+    try {
+      let blob = await localforage.getItem(`video_blob_${activeVideo.id}`);
+      const targetUrl = activeVideo.videoUrl || activeVideo.playUrl || activeVideo.src;
+
+      // Jika blob belum ada di IndexedDB, kita sedot dulu pakai proxy
+      if (!blob && targetUrl) {
+         const proxyUrl = `/api/download-video?videoUrl=${encodeURIComponent(targetUrl)}`;
+         const response = await fetch(proxyUrl);
+         if (!response.ok) throw new Error('Gagal dari proxy');
+         blob = await response.blob();
+      }
+
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeCreator = activeVideo.creator ? activeVideo.creator.replace(/[^a-zA-Z0-9]/g, '') : 'creator';
+        a.download = `TikDrop_${safeCreator}_${activeVideo.id}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        onShowToast(lang === 'id' ? 'Video berhasil diunduh ke perangkat!' : 'Video downloaded to device!', 'fa-check');
+      } else {
+        throw new Error("Blob tidak ditemukan");
+      }
+    } catch (err) {
+      console.error(err);
+      onShowToast(lang === 'id' ? 'Gagal mengunduh video.' : 'Failed to download video.', 'fa-triangle-exclamation');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+  // -----------------------------------
+
   const activeFolderObj = userFolders.find(f => {
     const fId = typeof f === 'object' ? f.id : f;
     const fName = typeof f === 'object' ? f.name : f;
@@ -114,7 +143,6 @@ export default function PlayerModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md">
       <div className="bg-zinc-900 w-full max-w-5xl h-[90vh] md:h-[620px] rounded-[2rem] overflow-hidden flex flex-col md:flex-row shadow-2xl relative border border-zinc-800/80">
         
-        {/* Tombol Tutup */}
         <button 
           onClick={onClose} 
           className="absolute top-4 right-4 z-20 w-10 h-10 bg-zinc-800/80 backdrop-blur-sm text-zinc-300 rounded-full flex items-center justify-center hover:bg-emerald-500 hover:text-zinc-950 transition-all shadow-lg cursor-pointer"
@@ -122,20 +150,14 @@ export default function PlayerModal({
           <i className="fa-solid fa-xmark text-lg"></i>
         </button>
 
-        {/* Pemutar Video */}
         <div className="w-full aspect-[9/16] md:aspect-auto md:w-[349px] bg-black relative flex items-center justify-center shrink-0">
-          
-          {/* TAMBAHAN: Indikator Vault Status Guard */}
           <div className="absolute top-4 left-4 z-20 px-2 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-[10px] text-white font-bold flex gap-1.5 items-center shadow-lg">
             {mediaStatus === 'True Offline (Aman)' && <i className="fa-solid fa-lock text-emerald-400"></i>}
             {mediaStatus === 'Online Cloud' && !mediaError && <i className="fa-solid fa-cloud text-blue-400"></i>}
             {mediaError && <i className="fa-solid fa-skull-crossbones text-red-500"></i>}
             <span>{mediaError ? 'Source Dead' : mediaStatus}</span>
           </div>
-          {/* -------------------------------------- */}
 
-          {/* Fallback cerdas: Jika direct video error, langsung alihkan ke Iframe */}
-          {/* Memprioritaskan localVideoUrl jika ada, jika tidak, pakai directVideoSrc CDN */}
           {(localVideoUrl || directVideoSrc) && !mediaError ? (
             <video 
               src={localVideoUrl || directVideoSrc} 
@@ -145,7 +167,7 @@ export default function PlayerModal({
               onError={() => {
                 setMediaError(true);
                 setMediaStatus('Source Dead');
-              }} // Deteksi jika URL video mati/403
+              }} 
               className="w-full h-full object-cover"
             />
           ) : (
@@ -160,7 +182,6 @@ export default function PlayerModal({
           )}
         </div>
 
-        {/* Informasi & Catatan */}
         <div className="flex-1 bg-zinc-900 p-6 sm:p-8 flex flex-col overflow-y-auto">
           
           <div className="mb-6">
@@ -183,7 +204,6 @@ export default function PlayerModal({
             </div>
           </div>
 
-          {/* Selector Folder Modal */}
           <div className="mb-5 relative" ref={dropdownRef}>
             <label className="flex items-center text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
               <i className="fa-solid fa-folder-tree mr-2"></i> 
@@ -224,9 +244,7 @@ export default function PlayerModal({
                         key={fId}
                         onClick={() => handleSelectFolder(fId)}
                         className={`text-left px-4 py-3 text-sm rounded-xl transition-all cursor-pointer ${
-                          isSelected 
-                            ? 'bg-emerald-500/10 text-emerald-400 font-bold' 
-                            : 'text-zinc-300 hover:bg-zinc-700'
+                          isSelected ? 'bg-emerald-500/10 text-emerald-400 font-bold' : 'text-zinc-300 hover:bg-zinc-700'
                         }`}
                       >
                         {fName}
@@ -238,8 +256,7 @@ export default function PlayerModal({
             )}
           </div>
 
-          {/* Catatan Pribadi */}
-          <div className="flex-1 flex flex-col mb-6">
+          <div className="flex-1 flex flex-col mb-4">
             <label className="flex items-center text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
               <i className="fa-solid fa-pen-to-square mr-2"></i> 
               {lang === 'id' ? 'Catatan Pribadi' : 'Personal Note'}
@@ -248,28 +265,41 @@ export default function PlayerModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={lang === 'id' ? 'Tulis ide, hashtag, atau catatan penting...' : 'Write ideas, hashtags, or notes...'}
-              className="w-full flex-1 min-h-[120px] bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm rounded-2xl px-5 py-4 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none transition-all shadow-inner"
+              className="w-full flex-1 min-h-[100px] bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm rounded-2xl px-5 py-4 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none transition-all shadow-inner"
             ></textarea>
           </div>
 
           {/* Tombol Aksi */}
-          <div className="grid grid-cols-2 gap-3 mt-auto shrink-0">
+          <div className="mt-auto shrink-0 flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => onTogglePin(activeVideo.id)}
+                className={`py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  activeVideo.isPinned 
+                    ? 'bg-zinc-800 text-emerald-400 border border-emerald-500/30 shadow-inner' 
+                    : 'bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
+                }`}
+              >
+                <i className={`fa-solid fa-thumbtack ${activeVideo.isPinned ? '-rotate-45' : ''} transition-transform`}></i> 
+                {activeVideo.isPinned ? (lang === 'id' ? 'Lepas Sematan' : 'Unpin') : (lang === 'id' ? 'Sematkan Video' : 'Pin Video')}
+              </button>
+              <button
+                onClick={handleSave}
+                className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+              >
+                <i className="fa-solid fa-floppy-disk"></i> {lang === 'id' ? 'Simpan Catatan' : 'Save Note'}
+              </button>
+            </div>
+            
+            {/* Opsi 3: Tombol Unduh ke Perangkat Fisik */}
             <button
-              onClick={() => onTogglePin(activeVideo.id)}
-              className={`py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                activeVideo.isPinned 
-                  ? 'bg-zinc-800 text-emerald-400 border border-emerald-500/30 shadow-inner' 
-                  : 'bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
+              onClick={handleDownloadPhysical}
+              disabled={isDownloading}
+              className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer border border-zinc-800 
+                ${isDownloading ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-zinc-950 text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
             >
-              <i className={`fa-solid fa-thumbtack ${activeVideo.isPinned ? '-rotate-45' : ''} transition-transform`}></i> 
-              {activeVideo.isPinned ? (lang === 'id' ? 'Lepas Sematan' : 'Unpin') : (lang === 'id' ? 'Sematkan Video' : 'Pin Video')}
-            </button>
-            <button
-              onClick={handleSave}
-              className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
-            >
-              <i className="fa-solid fa-floppy-disk"></i> {lang === 'id' ? 'Simpan Catatan' : 'Save Note'}
+              <i className={`fa-solid ${isDownloading ? 'fa-spinner fa-spin' : 'fa-download'}`}></i> 
+              {isDownloading ? (lang === 'id' ? 'Mengunduh...' : 'Downloading...') : (lang === 'id' ? 'Unduh .mp4 ke Perangkat' : 'Download .mp4 to Device')}
             </button>
           </div>
 

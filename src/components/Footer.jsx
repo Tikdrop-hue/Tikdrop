@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 
-export default function Footer({ t, onExportJSON, onImportJSON }) {
+export default function Footer({ t, lang, onExportJSON, onImportJSON, onExportZIP }) {
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -16,7 +16,7 @@ export default function Footer({ t, onExportJSON, onImportJSON }) {
         }
       } catch (error) {
         console.error("Invalid JSON file", error);
-        alert("File JSON tidak valid atau rusak.");
+        alert(lang === 'id' ? "File JSON tidak valid atau rusak." : "Invalid or corrupted JSON file.");
       }
     };
     reader.readAsText(file);
@@ -25,7 +25,7 @@ export default function Footer({ t, onExportJSON, onImportJSON }) {
   };
 
   return (
-    <footer className="mt-12 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-400 bg-zinc-800 rounded-3xl shadow-md px-8">
+    <footer className="mt-12 py-8 flex flex-col lg:flex-row items-center justify-between gap-6 text-xs text-zinc-400 bg-zinc-800 rounded-3xl shadow-md px-8">
       <div className="flex items-center gap-3">
         <div className="w-6 h-6 rounded-lg overflow-hidden bg-zinc-900 flex items-center justify-center">
           <img 
@@ -37,7 +37,7 @@ export default function Footer({ t, onExportJSON, onImportJSON }) {
         <span className="font-semibold text-zinc-300">Tik<span className="text-emerald-400">Drop</span> Vault &copy; {new Date().getFullYear()}</span>
       </div>
       
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-3">
         {/* Hidden File Input untuk Import */}
         <input 
           type="file" 
@@ -51,14 +51,23 @@ export default function Footer({ t, onExportJSON, onImportJSON }) {
           onClick={() => fileInputRef.current?.click()} 
           className="hover:text-sky-400 transition-all flex items-center gap-2 cursor-pointer bg-zinc-900 px-5 py-2.5 rounded-2xl shadow-inner font-bold text-zinc-300 hover:bg-zinc-950"
         >
-          <i className="fa-solid fa-cloud-arrow-up text-sky-400"></i> Import JSON
+          <i className="fa-solid fa-cloud-arrow-up text-sky-400"></i> {lang === 'id' ? 'Import JSON' : 'Import JSON'}
         </button>
 
         <button 
           onClick={onExportJSON} 
           className="hover:text-emerald-400 transition-all flex items-center gap-2 cursor-pointer bg-zinc-900 px-5 py-2.5 rounded-2xl shadow-inner font-bold text-zinc-300 hover:bg-zinc-950"
         >
-          <i className="fa-solid fa-cloud-arrow-down text-emerald-400"></i> {t.footerBackupJson}
+          <i className="fa-solid fa-file-code text-emerald-400"></i> {t.footerBackupJson || (lang === 'id' ? 'Export Data (JSON)' : 'Export Data (JSON)')}
+        </button>
+        
+        {/* Tombol Baru untuk Ekspor ZIP */}
+        <button 
+          onClick={onExportZIP} 
+          className="hover:text-amber-400 transition-all flex items-center gap-2 cursor-pointer bg-zinc-900 px-5 py-2.5 rounded-2xl shadow-inner font-bold text-zinc-300 hover:bg-zinc-950"
+          title={lang === 'id' ? 'Backup seluruh data beserta file video offline' : 'Backup all data including offline video files'}
+        >
+          <i className="fa-solid fa-file-zipper text-amber-400"></i> {lang === 'id' ? 'Export Full Vault (ZIP)' : 'Export Full Vault (ZIP)'}
         </button>
       </div>
     </footer>

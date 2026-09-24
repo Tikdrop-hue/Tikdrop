@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import localforage from 'localforage';
+import JSZip from 'jszip'; // Pustaka untuk mengekspor data ke ZIP
+
 import Navbar from './components/Navbar';
 import Toolbar from './components/Toolbar';
 import VideoCard from './components/VideoCard';
@@ -125,7 +127,6 @@ export default function App() {
     saveLang();
   }, [lang, isDataLoaded]);
 
-
   const showToast = (message, icon = 'fa-check') => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast({ show: true, message, icon });
@@ -188,7 +189,7 @@ export default function App() {
     }
   };
 
-  // --- LOGIKA BARU: BACKGROUND DOWNLOAD & PENYIMPANAN BLOB ---
+  // --- LOGIKA: BACKGROUND DOWNLOAD & PENYIMPANAN BLOB ---
   const handleSaveVideo = async (newEntry) => {
     const entryId = newEntry.id;
     
@@ -206,7 +207,6 @@ export default function App() {
 
     try {
       // 3. Panggil API internal Vercel untuk download video (mengatasi CORS)
-      // Pastikan property video URL sesuai dengan struktur data dari TikWM
       const targetUrl = newEntry.videoUrl || newEntry.playUrl || newEntry.src;
       
       if (!targetUrl) {
@@ -238,7 +238,6 @@ export default function App() {
 
     } catch (error) {
       console.error('Download background gagal:', error);
-      // Jika gagal, user masih bisa menontonnya via stream online
       showToast(
         lang === 'id' 
           ? 'Gagal mengunduh offline. Video akan menggunakan streaming online.' 
@@ -247,7 +246,6 @@ export default function App() {
       );
     }
   };
-  // -------------------------------------------------------------
 
   const handleTogglePin = (id) => {
     setArchives(prev => prev.map(item => item.id === id ? { ...item, isPinned: !item.isPinned } : item));
@@ -283,7 +281,6 @@ export default function App() {
     );
   };
 
-  // LOGIKA RENAME FOLDER
   const handleRenameFolder = (folderId, newName) => {
     if (!newName.trim()) return;
     
@@ -345,6 +342,54 @@ export default function App() {
     }
   };
 
+  // --- LOGIKA EXPORT ZIP (Full Backup termasuk Biner) ---
+  const handleExportZIP = async () => {
+    showToast(lang === 'id' ? 'Membuat arsip ZIP, mohon tunggu...' : 'Creating ZIP archive, please wait...', 'fa-spinner fa-spin');
+    
+    try {
+      const zip = new JSZip();
+      
+      // 1. Simpan metadata ke file JSON
+      const backupData = { archives, userFolders };
+      zip.file(`TikDrop_Metadata_${new Date().toISOString().split('T')[0]}.json`, JSON.stringify(backupData, null, 2));
+
+      // 2. Buat folder khusus di dalam ZIP untuk video biner
+      const videoFolder = zip.folder("Offline_Videos");
+
+      // 3. Loop semua video dan tarik data fisiknya dari IndexedDB
+      let videoCount = 0;
+      for (const item of archives) {
+        const blob = await localforage.getItem(`video_blob_${item.id}`);
+        if (blob) {
+          const safeCreator = item.creator ? item.creator.replace(/[^a-zA-Z0-9]/g, '') : 'unknown';
+          videoFolder.file(`TikDrop_${safeCreator}_${item.id}.mp4`, blob);
+          videoCount++;
+        }
+      }
+
+      // 4. Generate dan unduh ZIP
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.href = url;
+      downloadAnchor.download = `TikDrop_FullVault_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      document.body.removeChild(downloadAnchor);
+      URL.revokeObjectURL(url);
+
+      showToast(
+        lang === 'id' 
+          ? `Vault diekspor! Termasuk ${videoCount} file video offline.` 
+          : `Vault exported! Included ${videoCount} offline video files.`, 
+        'fa-box-archive'
+      );
+    } catch (err) {
+      console.error("Gagal membuat ZIP:", err);
+      showToast(lang === 'id' ? 'Terjadi kesalahan saat membuat file ZIP.' : 'Error creating ZIP file.', 'fa-triangle-exclamation');
+    }
+  };
+
   return (
     <div className="bg-zinc-900 text-zinc-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-zinc-950 overflow-x-hidden">
       <Navbar
@@ -401,8 +446,10 @@ export default function App() {
 
         <Footer 
           t={t} 
+          lang={lang}
           onExportJSON={handleExportJSON} 
           onImportJSON={handleImportJSON} 
+          onExportZIP={handleExportZIP} 
         />
       </main>
 
