@@ -24,6 +24,11 @@ export default function Get({ onComplete, lang = 'id', onToggleLang }) {
       title: "Full Privacy & Backup (ZIP/JSON)",
       description: "100% secure. All data is stored on your local device. You can export your entire video collection and notes to ZIP or JSON format with a single click.",
       icon: "fa-solid fa-shield-halved text-purple-400",
+    },
+    {
+      title: "Important: Data Storage Warning",
+      description: "All your videos and data are stored locally in this browser. If you clear your browser data/cache or uninstall the browser, your Vault will be permanently deleted. Always remember to backup your data regularly!",
+      icon: "fa-solid fa-triangle-exclamation text-rose-400",
     }
   ] : [
     {
@@ -45,6 +50,11 @@ export default function Get({ onComplete, lang = 'id', onToggleLang }) {
       title: "Privasi Penuh & Backup (ZIP/JSON)",
       description: "100% aman. Semua data tersimpan di perangkat lokal Anda. Anda dapat mengekspor seluruh koleksi video beserta catatannya ke dalam format ZIP atau JSON dengan sekali klik.",
       icon: "fa-solid fa-shield-halved text-purple-400",
+    },
+    {
+      title: "Penting: Peringatan Penyimpanan",
+      description: "Semua video dan data Anda disimpan secara lokal di peramban ini. Jika Anda menghapus data peramban (clear cache/data) atau mencopot peramban, isi Vault Anda akan hilang permanen. Selalu ingat untuk rutin melakukan Backup!",
+      icon: "fa-solid fa-triangle-exclamation text-rose-400",
     }
   ];
 
@@ -57,7 +67,8 @@ export default function Get({ onComplete, lang = 'id', onToggleLang }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] w-full h-full bg-zinc-950 flex flex-col md:flex-row overflow-hidden selection:bg-emerald-500 selection:text-zinc-950">
+    // Mengganti bg-zinc-950 menjadi bg-zinc-900 agar lebih soft dan senada dengan website
+    <div className="fixed inset-0 z-[100] w-full h-full bg-zinc-900 flex flex-col md:flex-row overflow-hidden selection:bg-emerald-500 selection:text-zinc-950">
       
       {/* TOMBOL BAHASA - DI KANAN ATAS (Tanpa Border) */}
       <div className="absolute top-6 right-6 md:top-8 md:right-8 z-50">
@@ -71,7 +82,7 @@ export default function Get({ onComplete, lang = 'id', onToggleLang }) {
       </div>
 
       {/* Kolom Kiri: Cover / Visual Logo (Tanpa Border) */}
-      <div className="w-full md:w-5/12 h-1/3 md:h-full bg-zinc-900/40 relative flex flex-col items-center justify-center p-8">
+      <div className="w-full md:w-5/12 h-1/3 md:h-full bg-zinc-800/30 relative flex flex-col items-center justify-center p-8">
         {/* Latar Belakang Gradien Halus */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent"></div>
         
@@ -95,17 +106,18 @@ export default function Get({ onComplete, lang = 'id', onToggleLang }) {
       {/* Kolom Kanan: Konten Penjelasan Bertahap */}
       <div className="w-full md:w-7/12 h-2/3 md:h-full flex flex-col p-8 md:p-16 lg:p-24 relative">
         
-        {/* Indikator Langkah (Dots) */}
+        {/* Indikator Langkah (Dots) yang kini bisa di-klik */}
         <div className="flex gap-2 mb-12">
           {steps.map((_, index) => (
             <div 
-              key={index} 
-              className={`h-1.5 rounded-full transition-all duration-500 ${
+              key={index}
+              onClick={() => setCurrentStep(index)}
+              className={`h-1.5 rounded-full transition-all duration-500 cursor-pointer ${
                 index === currentStep 
                   ? 'w-8 bg-emerald-400' 
                   : index < currentStep 
-                    ? 'w-4 bg-emerald-400/30' 
-                    : 'w-4 bg-zinc-800'
+                    ? 'w-4 bg-emerald-400/40 hover:bg-emerald-400/70' 
+                    : 'w-4 bg-zinc-700 hover:bg-zinc-600'
               }`}
             />
           ))}
@@ -135,13 +147,17 @@ export default function Get({ onComplete, lang = 'id', onToggleLang }) {
           
           <button 
             onClick={handleNext}
-            className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-8 py-4 rounded-2xl font-black text-sm transition-all flex items-center gap-3 shadow-lg shadow-emerald-500/20 cursor-pointer border-none outline-none"
+            className={`text-zinc-950 px-8 py-4 rounded-2xl font-black text-sm transition-all flex items-center gap-3 shadow-lg cursor-pointer border-none outline-none ${
+              currentStep === steps.length - 1 
+                ? 'bg-rose-500 hover:bg-rose-400 shadow-rose-500/20' 
+                : 'bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20'
+            }`}
           >
             {currentStep === steps.length - 1 
-              ? (lang === 'id' ? 'Mulai Sekarang' : 'Start Now') 
+              ? (lang === 'id' ? 'Saya Mengerti, Mulai' : 'I Understand, Start') 
               : (lang === 'id' ? 'Lanjut' : 'Next')
             } 
-            <i className="fa-solid fa-arrow-right"></i>
+            <i className={currentStep === steps.length - 1 ? "fa-solid fa-check" : "fa-solid fa-arrow-right"}></i>
           </button>
         </div>
 
