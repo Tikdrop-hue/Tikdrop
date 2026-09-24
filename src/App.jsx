@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import localforage from 'localforage';
 import Navbar from './components/Navbar';
 import Toolbar from './components/Toolbar';
 import VideoCard from './components/VideoCard';
@@ -14,6 +15,12 @@ import TutorialModal from './components/modals/TutorialModal';
 
 import { i18nDict } from './constants/i18n';
 
+// Konfigurasi IndexedDB via localforage
+localforage.config({
+  name: 'TikDropVault',
+  storeName: 'tikdrop_data'
+});
+
 // Helper untuk menormalisasi format folder (string -> object)
 const normalizeFolders = (folders) => {
   if (!Array.isArray(folders)) return [];
@@ -26,12 +33,13 @@ const normalizeFolders = (folders) => {
 };
 
 export default function App() {
-  const [archives, setArchives] = useState(() => JSON.parse(localStorage.getItem('tikdrop_archives_v4')) || []);
-  const [userFolders, setUserFolders] = useState(() => {
-    const raw = JSON.parse(localStorage.getItem('tikdrop_folders_v4')) || [];
-    return normalizeFolders(raw);
-  });
-  const [lang, setLang] = useState(() => localStorage.getItem('tikdrop_lang_v1') || 'id');
+  // State dasar yang awalnya kosong
+  const [archives, setArchives] = useState([]);
+  const [userFolders, setUserFolders] = useState([]);
+  const [lang, setLang] = useState('id');
+
+  // State untuk melacak apakah data sudah selesai dimuat dari IndexedDB
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const [activeFolder, setActiveFolder] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,17 +64,67 @@ export default function App() {
 
   const t = i18nDict[lang];
 
+  // 1. MEMUAT DATA DARI INDEXEDDB SAAT APLIKASI DIBUKA
   useEffect(() => {
-    localStorage.setItem('tikdrop_archives_v4', JSON.stringify(archives));
-  }, [archives]);
+    const loadData = async () => {
+      try {
+        const savedArchives = await localforage.getItem('tikdrop_archives_v4');
+        const savedFolders = await localforage.getItem('tikdrop_folders_v4');
+        const savedLang = await localforage.getItem('tikdrop_lang_v1');
+
+        if (savedArchives) setArchives(savedArchives);
+        if (savedFolders) setUserFolders(normalizeFolders(savedFolders));
+        if (savedLang) setLang(savedLang);
+      } catch (error) {
+        console.error("Gagal memuat data dari IndexedDB:", error);
+      } finally {
+        setIsDataLoaded(true); // Tandai data sudah dimuat
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // 2. MENYIMPAN DATA KE INDEXEDDB SETIAP KALI STATE BERUBAH
+  useEffect(() => {
+    if (!isDataLoaded) return; // Cegah overwrite data kosong sebelum dimuat
+
+    const saveData = async () => {
+      try {
+        await localforage.setItem('tikdrop_archives_v4', archives);
+      } catch (error) {
+        console.error("Gagal menyimpan archives ke IndexedDB:", error);
+      }
+    };
+    saveData();
+  }, [archives, isDataLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('tikdrop_folders_v4', JSON.stringify(userFolders));
-  }, [userFolders]);
+    if (!isDataLoaded) return;
+
+    const saveFolders = async () => {
+      try {
+        await localforage.setItem('tikdrop_folders_v4', userFolders);
+      } catch (error) {
+        console.error("Gagal menyimpan folders ke IndexedDB:", error);
+      }
+    };
+    saveFolders();
+  }, [userFolders, isDataLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('tikdrop_lang_v1', lang);
-  }, [lang]);
+    if (!isDataLoaded) return;
+
+    const saveLang = async () => {
+      try {
+        await localforage.setItem('tikdrop_lang_v1', lang);
+      } catch (error) {
+        console.error("Gagal menyimpan bahasa ke IndexedDB:", error);
+      }
+    };
+    saveLang();
+  }, [lang, isDataLoaded]);
+
 
   const showToast = (message, icon = 'fa-check') => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -81,6 +139,16 @@ export default function App() {
     setLang(nextLang);
     showToast(nextLang === 'id' ? 'Bahasa diubah ke Indonesia' : 'Language switched to English', 'fa-globe');
   };
+
+  // Tampilan Loading selama data diambil dari IndexedDB
+  if (!isDataLoaded) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4 text-emerald-400">
+        <i className="fa-solid fa-circle-notch animate-spin text-4xl"></i>
+        <p className="text-zinc-400 text-sm font-semibold">Memuat Vault...</p>
+      </div>
+    );
+  }
 
   // Filter & Sort Logic (Mendukung ID dan Nama Folder)
   const filteredArchives = archives.filter(item => {
@@ -160,7 +228,24 @@ export default function App() {
     );
   };
 
-  // Export / Backup JSON (Membawa archives + userFolders sekaligus)
+  // LOGIKA RENAME FOLDER
+  const handleRenameFolder = (folderId, newName) => {
+    if (!newName.trim()) return;
+    
+    setUserFolders(prev => prev.map(f => 
+      f.id === folderId ? { ...f, name: newName } : f
+    ));
+    
+    setArchives(prev => prev.map(item => 
+      item.folder === folderId || item.folder === userFolders.find(f => f.id === folderId)?.name
+        ? { ...item, folder: folderId } 
+        : item
+    ));
+
+    showToast(lang === 'id' ? 'Nama folder diubah!' : 'Folder renamed!', 'fa-pen-to-square');
+  };
+
+  // Export / Backup JSON 
   const handleExportJSON = () => {
     const backupData = {
       archives,
@@ -176,7 +261,7 @@ export default function App() {
     showToast(lang === 'id' ? 'Backup JSON beserta folder berhasil diunduh!' : 'JSON backup with folders downloaded!', 'fa-download');
   };
 
-  // Import JSON (Mendukung pemulihan archives & userFolders)
+  // Import JSON 
   const handleImportJSON = (importedData) => {
     if (Array.isArray(importedData)) {
       setArchives((prev) => {
@@ -308,6 +393,7 @@ export default function App() {
         t={t}
         userFolders={userFolders}
         setUserFolders={(folders) => setUserFolders(normalizeFolders(folders))}
+        onRenameFolder={handleRenameFolder}
         onClose={() => setIsFolderOpen(false)}
         onShowToast={showToast}
       />
