@@ -188,15 +188,12 @@ export default function App() {
       matchesFolder = item.folder === targetIdentifier || item.folder === targetName;
     }
 
-    // --- PERBAIKAN LOGIKA PENCARIAN ---
     let matchesSearch = true;
     if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
-      // Hilangkan '@' dari input teks pencarian kreator
       const queryCreator = query.replace(/@/g, ''); 
 
       const safeTitle = item.title ? item.title.toLowerCase() : '';
-      // Hilangkan '@' dari data kreator di sistem agar cocok dengan queryCreator
       const safeCreator = item.creator ? item.creator.toLowerCase().replace(/@/g, '') : '';
       const safeNote = item.note ? item.note.toLowerCase() : '';
 
@@ -206,7 +203,6 @@ export default function App() {
 
       matchesSearch = matchTitle || matchCreator || matchNote;
     }
-    // ----------------------------------
 
     const matchesFav = !showFavoritesOnly || item.isFavorite;
     return matchesFolder && matchesSearch && matchesFav;
@@ -494,8 +490,8 @@ export default function App() {
               <EmptyState t={t} onOpenAdd={() => setIsAddOpen(true)} />
             ) : (
               <>
-                <section className={viewMode === 'list' ? 'flex flex-col gap-3' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'}>
-                  {/* Pemetaan kini menggunakan currentVideos yang sudah dilimitasi */}
+                {/* PEMBARUAN DI SINI: list view mode menjadi 2 kolom (lg:grid-cols-2) pada layar besar */}
+                <section className={viewMode === 'list' ? 'grid grid-cols-1 lg:grid-cols-2 gap-3' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'}>
                   {currentVideos.map(item => (
                     <VideoCard
                       key={item.id}
@@ -522,7 +518,6 @@ export default function App() {
                     <div className="flex items-center gap-1 bg-zinc-900/50 p-1 rounded-2xl">
                       {[...Array(totalPages)].map((_, index) => {
                         const pageNumber = index + 1;
-                        // Logika sederhana: tampilkan max 5 halaman di sekitar current page (agar rapi jika ribuan data)
                         if (pageNumber === 1 || pageNumber === totalPages || (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)) {
                           return (
                             <button
