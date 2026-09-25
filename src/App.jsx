@@ -55,10 +55,6 @@ export default function App() {
   
   const [activeVideoId, setActiveVideoId] = useState(null);
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 20;
-
   // Modal States
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isFolderOpen, setIsFolderOpen] = useState(false);
@@ -73,11 +69,6 @@ export default function App() {
   const toastTimeoutRef = useRef(null);
 
   const t = i18nDict[lang];
-
-  // Reset pagination ke halaman 1 setiap kali filter atau pencarian berubah
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, activeFolder, showFavoritesOnly, sortOrder]);
 
   // 1. MEMUAT DATA DARI INDEXEDDB SAAT APLIKASI DIBUKA
   useEffect(() => {
@@ -188,12 +179,15 @@ export default function App() {
       matchesFolder = item.folder === targetIdentifier || item.folder === targetName;
     }
 
+    // --- PERBAIKAN LOGIKA PENCARIAN ---
     let matchesSearch = true;
     if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
+      // Hilangkan '@' dari input teks pencarian kreator
       const queryCreator = query.replace(/@/g, ''); 
 
       const safeTitle = item.title ? item.title.toLowerCase() : '';
+      // Hilangkan '@' dari data kreator di sistem agar cocok dengan queryCreator
       const safeCreator = item.creator ? item.creator.toLowerCase().replace(/@/g, '') : '';
       const safeNote = item.note ? item.note.toLowerCase() : '';
 
@@ -203,6 +197,7 @@ export default function App() {
 
       matchesSearch = matchTitle || matchCreator || matchNote;
     }
+    // ----------------------------------
 
     const matchesFav = !showFavoritesOnly || item.isFavorite;
     return matchesFolder && matchesSearch && matchesFav;
@@ -214,18 +209,6 @@ export default function App() {
     if (sortOrder === 'oldest') return new Date(a.date) - new Date(b.date);
     return 0;
   });
-
-  // Pagination Logic
-  const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
-  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
-  const currentVideos = filteredArchives.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredArchives.length / ITEMS_PER_PAGE);
-
-  const paginate = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    // Scroll smooth ke atas saat pindah halaman
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   const handleCardClick = (id) => {
     if (isBatchMode) {
@@ -443,6 +426,8 @@ export default function App() {
 
   return (
     <>
+      {/* --- INI BAGIAN YANG DIPERBAIKI --- */}
+      {/* Tampilan Gateway Onboarding, menutupi layar sepenuhnya ketika state showOnboarding bernilai true */}
       {showOnboarding && (
         <Get 
           onComplete={handleCompleteOnboarding} 
@@ -489,66 +474,18 @@ export default function App() {
             {filteredArchives.length === 0 ? (
               <EmptyState t={t} onOpenAdd={() => setIsAddOpen(true)} />
             ) : (
-              <>
-                {/* PEMBARUAN DI SINI: list view mode menjadi 2 kolom (lg:grid-cols-2) pada layar besar */}
-                <section className={viewMode === 'list' ? 'grid grid-cols-1 lg:grid-cols-2 gap-3' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'}>
-                  {currentVideos.map(item => (
-                    <VideoCard
-                      key={item.id}
-                      item={item}
-                      viewMode={viewMode}
-                      isBatchMode={isBatchMode}
-                      isSelected={selectedBatchIds.has(item.id)}
-                      onClick={handleCardClick}
-                    />
-                  ))}
-                </section>
-
-                {/* Soft Pagination UI */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-1.5 mt-10 mb-6">
-                    <button
-                      onClick={() => paginate(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer flex items-center justify-center min-w-[36px]"
-                    >
-                      <i className="fa-solid fa-chevron-left text-sm"></i>
-                    </button>
-
-                    <div className="flex items-center gap-1 bg-zinc-900/50 p-1 rounded-2xl">
-                      {[...Array(totalPages)].map((_, index) => {
-                        const pageNumber = index + 1;
-                        if (pageNumber === 1 || pageNumber === totalPages || (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)) {
-                          return (
-                            <button
-                              key={pageNumber}
-                              onClick={() => paginate(pageNumber)}
-                              className={`min-w-[36px] h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                currentPage === pageNumber
-                                  ? 'bg-emerald-500 text-zinc-950 shadow-md' 
-                                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/80'
-                              }`}
-                            >
-                              {pageNumber}
-                            </button>
-                          );
-                        } else if (pageNumber === currentPage - 2 || pageNumber === currentPage + 2) {
-                          return <span key={pageNumber} className="text-zinc-600 px-1 text-xs">...</span>;
-                        }
-                        return null;
-                      })}
-                    </div>
-
-                    <button
-                      onClick={() => paginate(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer flex items-center justify-center min-w-[36px]"
-                    >
-                      <i className="fa-solid fa-chevron-right text-sm"></i>
-                    </button>
-                  </div>
-                )}
-              </>
+              <section className={viewMode === 'list' ? 'flex flex-col gap-3' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'}>
+                {filteredArchives.map(item => (
+                  <VideoCard
+                    key={item.id}
+                    item={item}
+                    viewMode={viewMode}
+                    isBatchMode={isBatchMode}
+                    isSelected={selectedBatchIds.has(item.id)}
+                    onClick={handleCardClick}
+                  />
+                ))}
+              </section>
             )}
           </div>
 

@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onClick }) {
+  // State untuk mendeteksi apakah gambar thumbnail gagal dimuat
+  const [imageError, setImageError] = useState(false);
+
   // Mode Tampilan List
   if (viewMode === 'list') {
     return (
@@ -20,7 +23,28 @@ export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onC
           )}
           
           <div className="relative w-16 h-20 rounded-xl overflow-hidden bg-dark-950 flex-shrink-0 shadow-md">
-            <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            {/* Fallback Image & Video Handler List View */}
+            {item.thumbnail && !imageError ? (
+              <img 
+                src={item.thumbnail} 
+                alt={item.title} 
+                onError={() => setImageError(true)}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+              />
+            ) : item.videoUrl ? (
+              <video 
+                src={`${item.videoUrl}#t=0.1`} 
+                preload="metadata"
+                muted
+                playsInline
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 pointer-events-none"
+              />
+            ) : (
+              <div className="w-full h-full bg-dark-800 flex items-center justify-center text-slate-600">
+                 <i className="fa-solid fa-video-slash"></i>
+              </div>
+            )}
+            
             <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-300"></div>
             {item.isPinned && (
               <div className="absolute top-1 left-1 bg-brand text-slate-950 p-1 rounded-md text-[9px] shadow-sm">
@@ -69,7 +93,28 @@ export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onC
       }`}
     >
       <div className="relative w-full aspect-tiktok overflow-hidden bg-dark-950">
-        <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" />
+        
+        {/* Fallback Image & Video Handler Grid View */}
+        {item.thumbnail && !imageError ? (
+          <img 
+            src={item.thumbnail} 
+            alt={item.title} 
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" 
+          />
+        ) : item.videoUrl ? (
+          <video 
+            src={`${item.videoUrl}#t=0.1`} 
+            preload="metadata"
+            muted
+            playsInline
+            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 pointer-events-none"
+          />
+        ) : (
+          <div className="w-full h-full bg-dark-900 flex flex-col items-center justify-center text-slate-600 gap-2">
+             <i className="fa-solid fa-image text-3xl opacity-50"></i>
+          </div>
+        )}
         
         <div className="absolute inset-0 bg-gradient-to-t from-dark-950/90 via-dark-950/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-300"></div>
         
