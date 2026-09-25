@@ -4,7 +4,7 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // State untuk menyimpan riwayat Creator
+  // State Riwayat Creator (Hanya disimpan di memori/state sementara)
   const [creatorHistory, setCreatorHistory] = useState([]); 
   const [showCreatorHistory, setShowCreatorHistory] = useState(false); 
 
@@ -16,84 +16,46 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
     creator: '',
     folder: 'Umum',
     note: '',
-    thumbnail: '',
-    videoUrl: '',
-    sound: 'Original Sound',
-    caption: ''
+    videoUrl: ''
   });
 
-  // Muat riwayat dari localStorage saat modal dibuka
   useEffect(() => {
-    if (isOpen) {
-      const savedHistory = localStorage.getItem('tikDropCreatorHistory');
-      if (savedHistory) {
-        try {
-          setCreatorHistory(JSON.parse(savedHistory));
-        } catch (e) {
-          console.error("Gagal memuat riwayat:", e);
-        }
-      }
-    } else {
-        setShowCreatorHistory(false); 
-        setIsFolderOpen(false); // Reset dropdown folder saat modal tutup
+    if (!isOpen) {
+      setShowCreatorHistory(false); 
+      setIsFolderOpen(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleFetch = async (e) => {
+  // HANYA MEMPROSES LINK URL DENGAN AMAN DILOKAL STATE
+  const handleFetch = (e) => {
     if (e) e.preventDefault();
     if (!url.trim()) {
-      onShowToast('Masukkan URL TikTok terlebih dahulu!', 'fa-triangle-exclamation');
+      onShowToast('Masukkan URL Quax / Video terlebih dahulu!', 'fa-triangle-exclamation');
       return;
     }
 
     setLoading(true);
 
     try {
-      const apiUrl = `/api/fetch-video?url=${encodeURIComponent(url.trim())}`;
-      const response = await fetch(apiUrl);
+      const cleanUrl = url.trim();
+      
+      // Ambil estimasi nama file dari URL Quax sebagai judul default jika belum ada
+      const rawFileName = cleanUrl.split('/').pop()?.split('?')[0] || 'Video Quax';
+      const extractedTitle = decodeURIComponent(rawFileName);
 
-      if (!response.ok) {
-        throw new Error(`HTTP Error status: ${response.status}`);
-      }
+      setFormData(prev => ({
+        ...prev,
+        videoUrl: cleanUrl,
+        title: prev.title || extractedTitle,
+        folder: prev.folder || (userFolders && userFolders[0]?.name) || 'Umum'
+      }));
 
-      const result = await response.json();
-
-      if (result && result.code === 0 && result.data) {
-        const data = result.data;
-
-        const fixUrl = (path) => {
-          if (!path) return '';
-          return path.startsWith('/') ? `https://www.tikwm.com${path}` : path;
-        };
-
-        const extractedTitle = data.title || 'Video TikTok';
-        const extractedCreator = `@${data.author?.unique_id || data.author?.nickname || 'tiktok_user'}`;
-        const extractedThumbnail = fixUrl(data.cover || data.origin_cover);
-        const extractedVideo = fixUrl(data.play || data.wmplay);
-        const extractedSound = data.music_info?.title 
-          ? `${data.music_info.title} - ${data.music_info.author}` 
-          : (data.music || 'Original Sound');
-
-        setFormData(prev => ({
-          ...prev,
-          title: extractedTitle,
-          creator: extractedCreator,
-          folder: prev.folder || (userFolders && userFolders[0]?.name) || 'Umum',
-          thumbnail: extractedThumbnail,
-          videoUrl: extractedVideo,
-          sound: extractedSound,
-          caption: extractedTitle
-        }));
-
-        onShowToast('Metadata berhasil diekstrak!', 'fa-wand-magic-sparkles');
-      } else {
-        throw new Error(result.msg || 'URL tidak valid atau video bersifat privat');
-      }
+      onShowToast('Link Quax berhasil terpasang!', 'fa-wand-magic-sparkles');
     } catch (err) {
       console.error('Fetch error:', err);
-      onShowToast('Gagal mengambil data. Pastikan link TikTok valid.', 'fa-circle-xmark');
+      onShowToast('Gagal memproses link.', 'fa-circle-xmark');
     } finally {
       setLoading(false);
     }
@@ -101,19 +63,31 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.title) return;
-
-    if (formData.creator.trim()) {
-        const newHistory = [formData.creator.trim(), ...creatorHistory.filter(h => h !== formData.creator.trim())].slice(0, 5);
-        setCreatorHistory(newHistory);
-        localStorage.setItem('tikDropCreatorHistory', JSON.stringify(newHistory));
+    
+    const finalVideoUrl = formData.videoUrl || url.trim();
+    
+    if (!finalVideoUrl) {
+      onShowToast('Masukkan URL video terlebih dahulu!', 'fa-triangle-exclamation');
+      return;
     }
 
+    if (!formData.title.trim()) {
+      onShowToast('Judul video wajib diisi!', 'fa-triangle-exclamation');
+      return;
+    }
+
+    if (formData.creator.trim()) {
+      const newHistory = [formData.creator.trim(), ...creatorHistory.filter(h => h !== formData.creator.trim())].slice(0, 5);
+      setCreatorHistory(newHistory);
+    }
+
+    // Mengirim objek data bersih yang cocok dengan struktur database baru
     const newVideo = { 
-      ...formData, 
-      id: Date.now().toString(), 
-      duration: '0:30', 
-      date: new Date().toLocaleDateString(), 
+      title: formData.title.trim(),
+      creator: formData.creator.trim() || null,
+      folder: formData.folder || 'Umum',
+      note: formData.note.trim() || null,
+      videoUrl: finalVideoUrl,
       isFavorite: false, 
       isPinned: false 
     };
@@ -125,16 +99,13 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
       creator: '',
       folder: 'Umum',
       note: '',
-      thumbnail: '',
-      videoUrl: '',
-      sound: '',
-      caption: ''
+      videoUrl: ''
     });
   };
 
   const handleCreatorHistoryClick = (historyCreator) => {
-      setFormData({ ...formData, creator: historyCreator });
-      setShowCreatorHistory(false);
+    setFormData({ ...formData, creator: historyCreator });
+    setShowCreatorHistory(false);
   };
 
   const handleSelectFolder = (folderName) => {
@@ -151,9 +122,9 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
           <div>
             <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
               <i className="fa-solid fa-cloud-arrow-down text-emerald-400"></i>
-              <span>{t?.addTitle || 'Fetch & Extract TikTok'}</span>
+              <span>{t?.addTitle || 'Tambah Video Quax'}</span>
             </h3>
-            <p className="text-xs text-zinc-400 mt-1">{t?.addSub || 'Automatic extraction of metadata & MP4 media'}</p>
+            <p className="text-xs text-zinc-400 mt-1">{t?.addSub || 'Masukkan link Quax / Direct video URL'}</p>
           </div>
           <button 
             type="button"
@@ -167,15 +138,15 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
         {/* Content Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto no-scrollbar bg-zinc-800">
           
-          {/* TikTok URL + Fetch Button */}
+          {/* Quax Video URL + Apply Button */}
           <div>
-            <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addUrlLabel || 'TikTok Video URL'}</label>
+            <label className="block text-xs font-bold text-zinc-300 mb-2">Quax / Video URL</label>
             <div className="flex gap-2">
               <input 
                 type="url" 
                 value={url} 
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://www.tiktok.com/@user/video/..." 
+                placeholder="https://quax.file/video.mp4" 
                 className="flex-1 bg-zinc-900/50 text-xs text-white p-3.5 rounded-2xl outline-none focus:bg-zinc-900/80 focus:ring-1 focus:ring-emerald-500/40 transition-all shadow-sm" 
               />
               <button 
@@ -191,12 +162,12 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
 
           {/* Video Title */}
           <div>
-            <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addTitleLabel || 'Video Title'}</label>
+            <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addTitleLabel || 'Judul Video'}</label>
             <input 
               type="text" 
               value={formData.title} 
               onChange={(e) => setFormData({ ...formData, title: e.target.value })} 
-              placeholder={t?.inputTitlePlaceholder || 'TikTok video title...'} 
+              placeholder={t?.inputTitlePlaceholder || 'Masukkan judul video...'} 
               className="w-full bg-zinc-900/50 text-xs text-white p-3.5 rounded-2xl outline-none focus:bg-zinc-900/80 focus:ring-1 focus:ring-emerald-500/40 transition-all shadow-sm" 
               required 
             />
@@ -205,9 +176,9 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
           {/* Creator & Folder */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
-            {/* Creator Input dengan Riwayat */}
+            {/* Creator Input */}
             <div className="relative">
-              <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addCreatorLabel || 'Creator'}</label>
+              <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addCreatorLabel || 'Kreator'}</label>
               <div className="relative">
                   <input 
                     type="text" 
@@ -221,7 +192,6 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
                     placeholder={t?.inputCreatorPlaceholder || '@username'} 
                     className="w-full bg-zinc-900/50 text-xs text-white p-3.5 rounded-2xl outline-none focus:bg-zinc-900/80 focus:ring-1 focus:ring-emerald-500/40 transition-all shadow-sm" 
                   />
-                  {/* Dropdown Riwayat Creator */}
                   {showCreatorHistory && creatorHistory.length > 0 && (
                       <div className="absolute top-full left-0 mt-1 w-full bg-zinc-900 rounded-2xl shadow-xl overflow-hidden z-10 border-none">
                           {creatorHistory.map((item, index) => (
@@ -238,9 +208,9 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
               </div>
             </div>
 
-            {/* Custom Soft Dropdown Folder */}
+            {/* Custom Folder Dropdown */}
             <div className="relative">
-              <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addFolderLabel || 'Collection Folder'}</label>
+              <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addFolderLabel || 'Folder Koleksi'}</label>
               
               <button
                 type="button"
@@ -251,7 +221,6 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
                 <i className={`fa-solid fa-chevron-down text-zinc-400 text-[10px] transition-transform duration-200 ${isFolderOpen ? 'rotate-180' : ''}`}></i>
               </button>
 
-              {/* Menu Options Custom Dropdown */}
               {isFolderOpen && (
                 <div className="absolute top-full left-0 mt-1.5 w-full bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden z-20 border-none p-1 space-y-0.5">
                   <div 
@@ -277,12 +246,12 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
 
           {/* Note */}
           <div>
-            <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addNoteLabel || 'Additional Note'}</label>
+            <label className="block text-xs font-bold text-zinc-300 mb-2">{t?.addNoteLabel || 'Catatan'}</label>
             <textarea 
               rows="3" 
               value={formData.note} 
               onChange={(e) => setFormData({ ...formData, note: e.target.value })} 
-              placeholder={t?.inputNotePlaceholder || 'Personal notes...'} 
+              placeholder={t?.inputNotePlaceholder || 'Catatan pribadi...'} 
               className="w-full bg-zinc-900/50 text-xs text-white p-3.5 rounded-2xl outline-none focus:bg-zinc-900/80 focus:ring-1 focus:ring-emerald-500/40 transition-all shadow-sm resize-none"
             ></textarea>
           </div>
@@ -294,13 +263,13 @@ export default function AddModal({ isOpen, t, lang, userFolders, onClose, onSave
               onClick={onClose} 
               className="bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 px-6 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer"
             >
-              {t?.btnCancel || 'Cancel'}
+              {t?.btnCancel || 'Batal'}
             </button>
             <button 
               type="submit" 
               className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-3 rounded-2xl text-xs font-black transition-all shadow-md cursor-pointer"
             >
-              {t?.btnSaveVault || 'Save to Vault'}
+              {t?.btnSaveVault || 'Simpan Video'}
             </button>
           </div>
         </form>

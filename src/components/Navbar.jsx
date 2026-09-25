@@ -38,10 +38,10 @@ export default function Navbar({
             />
           </div>
 
-          {/* Quick Actions dengan Animasi Expand/Slide Text saat Hover */}
+          {/* Quick Actions */}
           <div className="flex items-center gap-2">
             
-            {/* Tombol Panduan */}
+            {/* Panduan */}
             <button 
               onClick={onOpenTutorial} 
               className="group h-10 px-3 rounded-2xl flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:bg-zinc-700/50 transition-all duration-300 cursor-pointer overflow-hidden"
@@ -52,7 +52,7 @@ export default function Navbar({
               </span>
             </button>
 
-            {/* Tombol Statistik */}
+            {/* Statistik */}
             <button 
               onClick={onOpenStats} 
               className="group h-10 px-3 rounded-2xl flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:bg-zinc-700/50 transition-all duration-300 cursor-pointer overflow-hidden"
@@ -63,7 +63,7 @@ export default function Navbar({
               </span>
             </button>
 
-            {/* Tombol Folder */}
+            {/* Folder */}
             <button 
               onClick={onOpenFolder} 
               className="group h-10 px-3 rounded-2xl flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:bg-zinc-700/50 transition-all duration-300 cursor-pointer overflow-hidden"
@@ -74,7 +74,7 @@ export default function Navbar({
               </span>
             </button>
 
-            {/* Tombol Bahasa */}
+            {/* Bahasa */}
             <button 
               onClick={onToggleLang} 
               className="group h-10 px-3 rounded-2xl flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-700/50 font-black text-xs transition-all duration-300 cursor-pointer overflow-hidden"
@@ -85,7 +85,7 @@ export default function Navbar({
               </span>
             </button>
 
-            {/* Tombol Tambah Video */}
+            {/* Tambah Video */}
             <button 
               onClick={onOpenAdd} 
               className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-5 py-2.5 rounded-2xl font-black text-xs transition-all ml-2 flex items-center gap-2 shadow-lg hover:shadow-emerald-500/20 cursor-pointer"

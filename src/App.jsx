@@ -1,49 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import localforage from 'localforage';
-import JSZip from 'jszip'; // Pustaka untuk mengekspor data ke ZIP
+import { supabaseClient } from './supabaseClient';
 
+// Import Komponen
 import Navbar from './components/Navbar';
 import Toolbar from './components/Toolbar';
 import VideoCard from './components/VideoCard';
 import EmptyState from './components/EmptyState';
-import Footer from './components/Footer';
-import BatchBar from './components/BatchBar';
 import Toast from './components/Toast';
 import PlayerModal from './components/modals/PlayerModal';
 import AddModal from './components/modals/AddModal';
 import FolderModal from './components/modals/FolderModal';
 import StatsModal from './components/modals/StatsModal';
 import TutorialModal from './components/modals/TutorialModal';
-import Get from './components/Get'; // Import komponen gateway baru
-
+import ModalLogin from './components/modals/ModalLogin';
 import { i18nDict } from './constants/i18n';
 
-// Konfigurasi IndexedDB via localforage
-localforage.config({
-  name: 'TikDropVault',
-  storeName: 'tikdrop_data'
-});
-
-// Helper untuk menormalisasi format folder (string -> object)
-const normalizeFolders = (folders) => {
-  if (!Array.isArray(folders)) return [];
-  return folders.map(f => {
-    if (typeof f === 'string') {
-      return { id: f, name: f };
-    }
-    return f;
-  });
-};
-
 export default function App() {
-  // State dasar yang awalnya kosong
+  const [session, setSession] = useState(null);
   const [archives, setArchives] = useState([]);
   const [userFolders, setUserFolders] = useState([]);
   const [lang, setLang] = useState('id');
-
-  // State untuk melacak apakah data sudah selesai dimuat dari IndexedDB
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  // UI & Filter States
   const [activeFolder, setActiveFolder] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -52,7 +31,6 @@ export default function App() {
   
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [selectedBatchIds, setSelectedBatchIds] = useState(new Set());
-  
   const [activeVideoId, setActiveVideoId] = useState(null);
 
   // Modal States
@@ -60,162 +38,175 @@ export default function App() {
   const [isFolderOpen, setIsFolderOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // State untuk Gateway/Onboarding (Get.jsx)
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  // Toast State
   const [toast, setToast] = useState({ show: false, message: '', icon: 'fa-check' });
   const toastTimeoutRef = useRef(null);
 
-  const t = i18nDict[lang];
+  const t = i18nDict ? i18nDict[lang] : {};
 
-  // 1. MEMUAT DATA DARI INDEXEDDB SAAT APLIKASI DIBUKA
+  // Cek Sesi Auth
+  useEffect(() => {
+    supabaseClient.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load Data Publik
   useEffect(() => {
     const loadData = async () => {
       try {
-        const savedArchives = await localforage.getItem('tikdrop_archives_v4');
-        const savedFolders = await localforage.getItem('tikdrop_folders_v4');
-        const savedLang = await localforage.getItem('tikdrop_lang_v1');
+        const { data: videosData } = await supabaseClient
+          .from('videos')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-        if (savedArchives) setArchives(savedArchives);
-        if (savedFolders) setUserFolders(normalizeFolders(savedFolders));
-        if (savedLang) setLang(savedLang);
+        if (videosData) {
+            const mappedVideos = videosData.map(v => ({
+                ...v,
+                videoUrl: v.video_url,
+                thumbnail: v.thumbnail_url || v.video_url, // fallback thumbnail jika tidak ada
+                isFavorite: v.is_favorite,
+                isPinned: v.is_pinned,
+                date: v.created_at
+            }));
+            setArchives(mappedVideos);
+        }
+
+        const { data: foldersData } = await supabaseClient.from('folders').select('*');
+        if (foldersData) setUserFolders(foldersData);
+
       } catch (error) {
-        console.error("Gagal memuat data dari IndexedDB:", error);
+        console.error("Gagal memuat data:", error);
       } finally {
-        setIsDataLoaded(true); // Tandai data sudah dimuat
+        setIsDataLoaded(true);
       }
     };
-
     loadData();
-  }, []);
-
-  // Mengecek apakah user sudah pernah membuka web (menampilkan Get.jsx sekali saja)
-  useEffect(() => {
-    const hasVisited = localStorage.getItem('tikdrop_has_visited');
-    if (!hasVisited) {
-      setShowOnboarding(true);
-    }
-  }, []);
-
-  const handleCompleteOnboarding = () => {
-    localStorage.setItem('tikdrop_has_visited', 'true');
-    setShowOnboarding(false);
-  };
-
-  // 2. MENYIMPAN DATA KE INDEXEDDB SETIAP KALI STATE BERUBAH
-  useEffect(() => {
-    if (!isDataLoaded) return; // Cegah overwrite data kosong sebelum dimuat
-
-    const saveData = async () => {
-      try {
-        await localforage.setItem('tikdrop_archives_v4', archives);
-      } catch (error) {
-        console.error("Gagal menyimpan archives ke IndexedDB:", error);
-      }
-    };
-    saveData();
-  }, [archives, isDataLoaded]);
-
-  useEffect(() => {
-    if (!isDataLoaded) return;
-
-    const saveFolders = async () => {
-      try {
-        await localforage.setItem('tikdrop_folders_v4', userFolders);
-      } catch (error) {
-        console.error("Gagal menyimpan folders ke IndexedDB:", error);
-      }
-    };
-    saveFolders();
-  }, [userFolders, isDataLoaded]);
-
-  useEffect(() => {
-    if (!isDataLoaded) return;
-
-    const saveLang = async () => {
-      try {
-        await localforage.setItem('tikdrop_lang_v1', lang);
-      } catch (error) {
-        console.error("Gagal menyimpan bahasa ke IndexedDB:", error);
-      }
-    };
-    saveLang();
-  }, [lang, isDataLoaded]);
+  }, [session]);
 
   const showToast = (message, icon = 'fa-check') => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast({ show: true, message, icon });
-    toastTimeoutRef.current = setTimeout(() => {
-      setToast({ show: false, message: '', icon: 'fa-check' });
-    }, 3000);
+    toastTimeoutRef.current = setTimeout(() => setToast({ show: false, message: '', icon: '' }), 3000);
   };
 
-  const handleToggleLang = () => {
-    const nextLang = lang === 'id' ? 'en' : 'id';
-    setLang(nextLang);
-    showToast(nextLang === 'id' ? 'Bahasa diubah ke Indonesia' : 'Language switched to English', 'fa-globe');
+  const handleLogout = async () => {
+    await supabaseClient.auth.signOut();
+    showToast('Anda telah keluar', 'fa-right-from-bracket');
   };
 
-  // Tampilan Loading selama data diambil dari IndexedDB
-  if (!isDataLoaded) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4 text-emerald-400">
-        <i className="fa-solid fa-circle-notch animate-spin text-4xl"></i>
-        <p className="text-zinc-400 text-sm font-semibold">Memuat Vault...</p>
-      </div>
-    );
-  }
+  // Penjaga Tombol Add
+  const handleOpenAdd = () => {
+    if (!session?.user) {
+      setIsAuthModalOpen(true);
+      showToast('Silakan login terlebih dahulu untuk menambah video', 'fa-lock');
+    } else {
+      setIsAddOpen(true);
+    }
+  };
 
-  // Filter & Sort Logic (Mendukung ID dan Nama Folder)
-  const filteredArchives = archives.filter(item => {
-    let matchesFolder = activeFolder === 'All';
-    if (!matchesFolder) {
-      const activeObj = userFolders.find(f => f.id === activeFolder || f.name === activeFolder);
-      const targetIdentifier = activeObj ? activeObj.id : activeFolder;
-      const targetName = activeObj ? activeObj.name : activeFolder;
+  // PENTING: Fungsi ini sudah diperbaiki untuk menyesuaikan tabel DB baru
+  const handleSaveVideo = async (newEntry) => {
+    if (!session?.user) return;
+    
+    // Payload BERSiH (Hanya mengirim kolom yang terdaftar di database baru)
+    // Jangan mengirimkan 'id' karena kita menggunakan uuid auto-generate dari Supabase
+    const dbPayload = {
+        user_id: session.user.id,
+        title: newEntry.title,
+        creator: newEntry.creator || null,
+        folder_id: newEntry.folder !== 'Umum' ? newEntry.folder : null,
+        note: newEntry.note || null,
+        video_url: newEntry.videoUrl || newEntry.video_url,
+        is_favorite: false,
+        is_pinned: false
+    };
 
-      matchesFolder = item.folder === targetIdentifier || item.folder === targetName;
+    // Gunakan .select() agar Supabase mengembalikan data yang berhasil diinput (lengkap dengan id UUID baru)
+    const { data, error } = await supabaseClient
+        .from('videos')
+        .insert([dbPayload])
+        .select();
+
+    if (error) {
+        console.error("Supabase Error:", error);
+        showToast('Gagal menyimpan!', 'fa-circle-xmark');
+        return;
     }
 
-    // --- PERBAIKAN LOGIKA PENCARIAN ---
+    // Jika berhasil, tambahkan data kembalian (yang sudah punya id asli) ke state lokal
+    if (data && data.length > 0) {
+      const insertedData = data[0];
+      setArchives(prev => [{
+          ...insertedData, 
+          videoUrl: insertedData.video_url, 
+          thumbnail: insertedData.video_url, // Menggunakan video_url sebagai fallback
+          isFavorite: insertedData.is_favorite,
+          isPinned: insertedData.is_pinned,
+          date: insertedData.created_at
+      }, ...prev]);
+    }
+    
+    setIsAddOpen(false);
+    showToast('Video berhasil ditambahkan!', 'fa-cloud-arrow-up');
+  };
+
+  const handleTogglePin = async (id) => {
+    if (!session?.user) {
+      showToast('Login diperlukan untuk pin video', 'fa-lock');
+      return;
+    }
+    const target = archives.find(i => i.id === id);
+    if(!target) return;
+    const newValue = !target.isPinned;
+    setArchives(prev => prev.map(item => item.id === id ? { ...item, isPinned: newValue } : item));
+    await supabaseClient.from('videos').update({ is_pinned: newValue }).eq('id', id);
+  };
+
+  const handleSaveNote = async (id, note) => {
+    if (!session?.user) return;
+    setArchives(prev => prev.map(item => item.id === id ? { ...item, note } : item));
+    await supabaseClient.from('videos').update({ note: note }).eq('id', id);
+  };
+
+  const handleMoveFolder = async (id, newFolderId) => {
+    if (!session?.user) return;
+    setArchives(prev => prev.map(item => item.id === id ? { ...item, folder_id: newFolderId } : item));
+    await supabaseClient.from('videos').update({ folder_id: newFolderId === 'Umum' ? null : newFolderId }).eq('id', id);
+    showToast('Video dipindahkan', 'fa-folder-tree');
+  };
+
+  const handleRenameFolder = async (folderId, newName) => {
+    if (!session?.user) return;
+    setUserFolders(prev => prev.map(f => f.id === folderId ? { ...f, name: newName } : f));
+    await supabaseClient.from('folders').update({ name: newName }).eq('id', folderId);
+  };
+
+  // Filter & Sort
+  const filteredArchives = archives.filter(item => {
+    let matchesFolder = activeFolder === 'All';
+    if (!matchesFolder) matchesFolder = item.folder_id === activeFolder || item.folder === activeFolder;
+
     let matchesSearch = true;
     if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
-      // Hilangkan '@' dari input teks pencarian kreator
-      const queryCreator = query.replace(/@/g, ''); 
-
-      const safeTitle = item.title ? item.title.toLowerCase() : '';
-      // Hilangkan '@' dari data kreator di sistem agar cocok dengan queryCreator
-      const safeCreator = item.creator ? item.creator.toLowerCase().replace(/@/g, '') : '';
-      const safeNote = item.note ? item.note.toLowerCase() : '';
-
-      const matchTitle = safeTitle.includes(query);
-      const matchCreator = safeCreator.includes(queryCreator);
-      const matchNote = safeNote.includes(query);
-
-      matchesSearch = matchTitle || matchCreator || matchNote;
+      matchesSearch = (item.title?.toLowerCase().includes(query)) || (item.note?.toLowerCase().includes(query));
     }
-    // ----------------------------------
-
-    const matchesFav = !showFavoritesOnly || item.isFavorite;
-    return matchesFolder && matchesSearch && matchesFav;
+    return matchesFolder && matchesSearch && (!showFavoritesOnly || item.isFavorite);
   }).sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
-
-    if (sortOrder === 'newest') return new Date(b.date) - new Date(a.date);
-    if (sortOrder === 'oldest') return new Date(a.date) - new Date(b.date);
-    return 0;
+    return sortOrder === 'newest' ? new Date(b.created_at) - new Date(a.created_at) : new Date(a.created_at) - new Date(b.created_at);
   });
 
   const handleCardClick = (id) => {
     if (isBatchMode) {
       setSelectedBatchIds(prev => {
         const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        if (next.has(id)) next.delete(id); else next.add(id);
         return next;
       });
     } else {
@@ -223,344 +214,135 @@ export default function App() {
     }
   };
 
-  // --- LOGIKA: BACKGROUND DOWNLOAD & PENYIMPANAN BLOB ---
-  const handleSaveVideo = async (newEntry) => {
-    const entryId = newEntry.id;
-    
-    // 1. Simpan metadata awal ke state
-    setArchives(prev => [newEntry, ...prev]);
-    setIsAddOpen(false);
-    
-    // 2. Tampilkan toast info bahwa download offline sedang berjalan
-    showToast(
-      lang === 'id' 
-        ? 'Metadata tersimpan! Mengunduh video di latar belakang...' 
-        : 'Metadata saved! Downloading video in background...', 
-      'fa-cloud-arrow-down'
+  if (!isDataLoaded) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4 text-emerald-400">
+        <i className="fa-solid fa-circle-notch animate-spin text-4xl"></i>
+      </div>
     );
-
-    try {
-      // 3. Panggil API internal Vercel untuk download video (mengatasi CORS)
-      const targetUrl = newEntry.videoUrl || newEntry.playUrl || newEntry.src;
-      
-      if (!targetUrl) {
-         throw new Error("URL Video tidak ditemukan pada payload");
-      }
-
-      const proxyUrl = `/api/download-video?videoUrl=${encodeURIComponent(targetUrl)}`;
-      const response = await fetch(proxyUrl);
-      
-      if (!response.ok) throw new Error('Gagal mengunduh file biner dari proxy');
-      
-      // 4. Ubah response menjadi biner (Blob)
-      const videoBlob = await response.blob(); 
-      
-      // 5. Simpan biner tersebut ke IndexedDB dengan prefix 'video_blob_' + id
-      await localforage.setItem(`video_blob_${entryId}`, videoBlob);
-      
-      // 6. Update status video di state archives menjadi (Offline Ready = true)
-      setArchives(prev => prev.map(item => 
-        item.id === entryId ? { ...item, isOfflineReady: true } : item
-      ));
-
-      showToast(
-        lang === 'id' 
-          ? 'Video berhasil diunduh dan diamankan di brankas lokal!' 
-          : 'Video successfully downloaded and secured in local vault!', 
-        'fa-circle-check'
-      );
-
-    } catch (error) {
-      console.error('Download background gagal:', error);
-      showToast(
-        lang === 'id' 
-          ? 'Gagal mengunduh offline. Video akan menggunakan streaming online.' 
-          : 'Failed to download offline. Video will use online streaming.', 
-        'fa-triangle-exclamation'
-      );
-    }
-  };
-
-  const handleTogglePin = (id) => {
-    setArchives(prev => prev.map(item => item.id === id ? { ...item, isPinned: !item.isPinned } : item));
-    const target = archives.find(i => i.id === id);
-    if (target) {
-      showToast(!target.isPinned ? (lang === 'id' ? 'Video disematkan di atas' : 'Video pinned to top') : (lang === 'id' ? 'Sematkan dilepas' : 'Unpinned video'), 'fa-thumbtack');
-    }
-  };
-
-  const handleSaveNote = (id, note) => {
-    setArchives(prev => prev.map(item => item.id === id ? { ...item, note } : item));
-  };
-
-  const handleMoveFolder = (id, newFolderId) => {
-    setArchives(prev => prev.map(item => 
-      item.id === id ? { ...item, folder: newFolderId } : item
-    ));
-    showToast(
-      lang === 'id' ? 'Video berhasil dipindahkan!' : 'Video moved successfully!', 
-      'fa-folder-tree'
-    );
-  };
-
-  const handleBatchMoveFolder = (targetFolderId) => {
-    setArchives(prev => prev.map(item => 
-      selectedBatchIds.has(item.id) ? { ...item, folder: targetFolderId } : item
-    ));
-    setSelectedBatchIds(new Set());
-    setIsBatchMode(false);
-    showToast(
-      lang === 'id' ? 'Video terpilih berhasil dipindahkan!' : 'Selected videos moved successfully!', 
-      'fa-folder-tree'
-    );
-  };
-
-  const handleRenameFolder = (folderId, newName) => {
-    if (!newName.trim()) return;
-    
-    setUserFolders(prev => prev.map(f => 
-      f.id === folderId ? { ...f, name: newName } : f
-    ));
-    
-    setArchives(prev => prev.map(item => 
-      item.folder === folderId || item.folder === userFolders.find(f => f.id === folderId)?.name
-        ? { ...item, folder: folderId } 
-        : item
-    ));
-
-    showToast(lang === 'id' ? 'Nama folder diubah!' : 'Folder renamed!', 'fa-pen-to-square');
-  };
-
-  // Export / Backup JSON 
-  const handleExportJSON = () => {
-    const backupData = {
-      archives,
-      userFolders
-    };
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `TikDrop_Backup_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    showToast(lang === 'id' ? 'Backup JSON beserta folder berhasil diunduh!' : 'JSON backup with folders downloaded!', 'fa-download');
-  };
-
-  // Import JSON 
-  const handleImportJSON = (importedData) => {
-    if (Array.isArray(importedData)) {
-      setArchives((prev) => {
-        const existingIds = new Set(prev.map(item => item.id));
-        const newItems = importedData.filter(item => !existingIds.has(item.id));
-        return [...newItems, ...prev];
-      });
-      showToast(lang === 'id' ? 'Data berhasil dipulihkan!' : 'Data restored successfully!', 'fa-cloud-arrow-up');
-    } else if (importedData && typeof importedData === 'object' && Array.isArray(importedData.archives)) {
-      setArchives((prev) => {
-        const existingIds = new Set(prev.map(item => item.id));
-        const newItems = importedData.archives.filter(item => !existingIds.has(item.id));
-        return [...newItems, ...prev];
-      });
-      if (Array.isArray(importedData.userFolders)) {
-        setUserFolders(prev => {
-          const normalized = normalizeFolders(importedData.userFolders);
-          const existingIds = new Set(prev.map(f => f.id));
-          const newFolders = normalized.filter(f => !existingIds.has(f.id));
-          return [...prev, ...newFolders];
-        });
-      }
-      showToast(lang === 'id' ? 'Data & Folder berhasil dipulihkan!' : 'Data & Folders restored successfully!', 'fa-cloud-arrow-up');
-    } else {
-      showToast(lang === 'id' ? 'Format JSON tidak valid!' : 'Invalid JSON format!', 'fa-triangle-exclamation');
-    }
-  };
-
-  // --- LOGIKA EXPORT ZIP (Full Backup termasuk Biner) ---
-  const handleExportZIP = async () => {
-    showToast(lang === 'id' ? 'Membuat arsip ZIP, mohon tunggu...' : 'Creating ZIP archive, please wait...', 'fa-spinner fa-spin');
-    
-    try {
-      const zip = new JSZip();
-      
-      // 1. Simpan metadata ke file JSON
-      const backupData = { archives, userFolders };
-      zip.file(`TikDrop_Metadata_${new Date().toISOString().split('T')[0]}.json`, JSON.stringify(backupData, null, 2));
-
-      // 2. Buat folder khusus di dalam ZIP untuk video biner
-      const videoFolder = zip.folder("Offline_Videos");
-
-      // 3. Loop semua video dan tarik data fisiknya dari IndexedDB
-      let videoCount = 0;
-      for (const item of archives) {
-        const blob = await localforage.getItem(`video_blob_${item.id}`);
-        if (blob) {
-          const safeCreator = item.creator ? item.creator.replace(/[^a-zA-Z0-9]/g, '') : 'unknown';
-          videoFolder.file(`TikDrop_${safeCreator}_${item.id}.mp4`, blob);
-          videoCount++;
-        }
-      }
-
-      // 4. Generate dan unduh ZIP
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(zipBlob);
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.href = url;
-      downloadAnchor.download = `TikDrop_FullVault_${new Date().toISOString().split('T')[0]}.zip`;
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      document.body.removeChild(downloadAnchor);
-      URL.revokeObjectURL(url);
-
-      showToast(
-        lang === 'id' 
-          ? `Vault diekspor! Termasuk ${videoCount} file video offline.` 
-          : `Vault exported! Included ${videoCount} offline video files.`, 
-        'fa-box-archive'
-      );
-    } catch (err) {
-      console.error("Gagal membuat ZIP:", err);
-      showToast(lang === 'id' ? 'Terjadi kesalahan saat membuat file ZIP.' : 'Error creating ZIP file.', 'fa-triangle-exclamation');
-    }
-  };
+  }
 
   return (
-    <>
-      {/* --- INI BAGIAN YANG DIPERBAIKI --- */}
-      {/* Tampilan Gateway Onboarding, menutupi layar sepenuhnya ketika state showOnboarding bernilai true */}
-      {showOnboarding && (
-        <Get 
-          onComplete={handleCompleteOnboarding} 
-          lang={lang} 
-          onToggleLang={handleToggleLang} 
-        />
-      )}
+    <div className="bg-zinc-900 text-zinc-100 min-h-screen flex flex-col relative selection:bg-emerald-500">
+      
+      {/* Navbar */}
+      <Navbar
+        t={t}
+        lang={lang}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        archives={archives}
+        showFavoritesOnly={showFavoritesOnly}
+        setShowFavoritesOnly={setShowFavoritesOnly}
+        onResetFilter={() => { setActiveFolder('All'); setShowFavoritesOnly(false); setSearchQuery(''); }}
+        onOpenAdd={handleOpenAdd}
+        onOpenFolder={() => setIsFolderOpen(true)}
+        onOpenTutorial={() => setIsTutorialOpen(true)}
+        onOpenStats={() => setIsStatsOpen(true)}
+        onToggleLang={() => setLang(lang === 'id' ? 'en' : 'id')}
+      />
 
-      <div className="bg-zinc-900 text-zinc-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-zinc-950 overflow-x-hidden">
-        <Navbar
-          t={t}
-          lang={lang}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          archives={archives}
-          showFavoritesOnly={showFavoritesOnly}
-          setShowFavoritesOnly={setShowFavoritesOnly}
-          onResetFilter={() => { setActiveFolder('All'); setShowFavoritesOnly(false); setSearchQuery(''); }}
-          onOpenAdd={() => setIsAddOpen(true)}
-          onOpenFolder={() => setIsFolderOpen(true)}
-          onOpenTutorial={() => setIsTutorialOpen(true)}
-          onOpenStats={() => setIsStatsOpen(true)}
-          onToggleLang={handleToggleLang}
-        />
-
-        <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col justify-between">
-          <div>
-            <Toolbar
-              t={t}
-              userFolders={userFolders}
-              activeFolder={activeFolder}
-              setActiveFolder={setActiveFolder}
-              showFavoritesOnly={showFavoritesOnly}
-              filteredCount={filteredArchives.length}
-              isBatchMode={isBatchMode}
-              setIsBatchMode={(val) => { setIsBatchMode(val); setSelectedBatchIds(new Set()); }}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              sortOrder={sortOrder}
-              setSortOrder={setSortOrder}
-              onResetFilters={() => { setActiveFolder('All'); setShowFavoritesOnly(false); setSearchQuery(''); }}
-            />
-
-            {filteredArchives.length === 0 ? (
-              <EmptyState t={t} onOpenAdd={() => setIsAddOpen(true)} />
+      <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 py-6 flex flex-col justify-between">
+        <div>
+          {/* Status Login */}
+          <div className="flex justify-between items-center mb-4 px-2">
+            <span className="text-xs text-zinc-400">Mode Publik Vault</span>
+            {session?.user ? (
+               <div className="flex items-center gap-3">
+                 <span className="text-xs text-emerald-400 font-medium">{session.user.email}</span>
+                 <button onClick={handleLogout} className="text-xs bg-zinc-800 px-3 py-1.5 rounded-lg hover:bg-red-500 hover:text-white transition">
+                   Keluar
+                 </button>
+               </div>
             ) : (
-              <section className={viewMode === 'list' ? 'flex flex-col gap-3' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'}>
-                {filteredArchives.map(item => (
-                  <VideoCard
-                    key={item.id}
-                    item={item}
-                    viewMode={viewMode}
-                    isBatchMode={isBatchMode}
-                    isSelected={selectedBatchIds.has(item.id)}
-                    onClick={handleCardClick}
-                  />
-                ))}
-              </section>
+               <button onClick={() => setIsAuthModalOpen(true)} className="text-xs bg-emerald-500 text-zinc-950 font-bold px-3 py-1.5 rounded-lg hover:bg-emerald-400 transition shadow">
+                 Login / Daftar untuk Berkontribusi
+               </button>
             )}
           </div>
 
-          <Footer 
-            t={t} 
-            lang={lang}
-            onExportJSON={handleExportJSON} 
-            onImportJSON={handleImportJSON} 
-            onExportZIP={handleExportZIP} 
+          {/* Toolbar */}
+          <Toolbar
+            t={t}
+            userFolders={userFolders}
+            activeFolder={activeFolder}
+            setActiveFolder={setActiveFolder}
+            showFavoritesOnly={showFavoritesOnly}
+            filteredCount={filteredArchives.length}
+            isBatchMode={isBatchMode}
+            setIsBatchMode={(val) => { setIsBatchMode(val); setSelectedBatchIds(new Set()); }}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            sortOrder={sortOrder}
+            setSortOrder={setSortOrder}
           />
-        </main>
 
-        <BatchBar
-          count={selectedBatchIds.size}
-          t={t}
-          userFolders={userFolders}
-          onMoveFolder={handleBatchMoveFolder}
-          onDelete={() => {
-            setArchives(prev => prev.filter(i => !selectedBatchIds.has(i.id)));
-            setSelectedBatchIds(new Set());
-            setIsBatchMode(false);
-            showToast(lang === 'id' ? 'Video berhasil dihapus!' : 'Videos deleted!', 'fa-trash-can');
-          }}
-          onCancel={() => { setIsBatchMode(false); setSelectedBatchIds(new Set()); }}
-        />
+          {filteredArchives.length === 0 ? (
+            <EmptyState t={t} onOpenAdd={handleOpenAdd} />
+          ) : (
+            <section className={viewMode === 'list' ? 'flex flex-col gap-3' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4'}>
+              {filteredArchives.map(item => (
+                <VideoCard
+                  key={item.id}
+                  item={item}
+                  viewMode={viewMode}
+                  isBatchMode={isBatchMode}
+                  isSelected={selectedBatchIds.has(item.id)}
+                  onClick={handleCardClick}
+                />
+              ))}
+            </section>
+          )}
+        </div>
+      </main>
 
-        {/* Modals */}
-        <PlayerModal
-          activeVideo={archives.find(i => i.id === activeVideoId)}
-          t={t}
-          lang={lang}
-          userFolders={userFolders}
-          onClose={() => setActiveVideoId(null)}
-          onTogglePin={handleTogglePin}
-          onSaveNote={handleSaveNote}
-          onMoveFolder={handleMoveFolder}
-          onShowToast={showToast}
-        />
+      {/* Modal Login Terpisah */}
+      <ModalLogin
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onShowToast={showToast}
+        t={t}
+      />
 
-        <AddModal
-          isOpen={isAddOpen}
-          t={t}
-          lang={lang}
-          userFolders={userFolders}
-          onClose={() => setIsAddOpen(false)}
-          onSave={handleSaveVideo}
-          onShowToast={showToast}
-        />
+      {/* Modal Lainnya */}
+      {activeVideoId && (
+          <PlayerModal
+            activeVideo={archives.find(i => i.id === activeVideoId)}
+            t={t}
+            lang={lang}
+            userFolders={userFolders}
+            onClose={() => setActiveVideoId(null)}
+            onTogglePin={handleTogglePin}
+            onSaveNote={handleSaveNote}
+            onMoveFolder={handleMoveFolder}
+            onShowToast={showToast}
+          />
+      )}
 
-        <FolderModal
-          isOpen={isFolderOpen}
-          t={t}
-          userFolders={userFolders}
-          setUserFolders={(folders) => setUserFolders(normalizeFolders(folders))}
-          onRenameFolder={handleRenameFolder}
-          onClose={() => setIsFolderOpen(false)}
-          onShowToast={showToast}
-        />
+      <AddModal
+        isOpen={isAddOpen}
+        t={t}
+        lang={lang}
+        userFolders={userFolders}
+        onClose={() => setIsAddOpen(false)}
+        onSave={handleSaveVideo}
+        onShowToast={showToast}
+      />
 
-        <StatsModal
-          isOpen={isStatsOpen}
-          t={t}
-          archives={archives}
-          userFolders={userFolders}
-          onClose={() => setIsStatsOpen(false)}
-        />
+      <FolderModal
+        isOpen={isFolderOpen}
+        t={t}
+        userFolders={userFolders}
+        setUserFolders={setUserFolders}
+        onRenameFolder={handleRenameFolder}
+        onClose={() => setIsFolderOpen(false)}
+        onShowToast={showToast}
+      />
 
-        <TutorialModal
-          isOpen={isTutorialOpen}
-          t={t}
-          onClose={() => setIsTutorialOpen(false)}
-        />
+      {isStatsOpen && <StatsModal isOpen={isStatsOpen} onClose={() => setIsStatsOpen(false)} archives={archives} t={t} />}
+      {isTutorialOpen && <TutorialModal isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} lang={lang} t={t} />}
 
-        <Toast toast={toast} />
-      </div>
-    </>
+      <Toast toast={toast} />
+    </div>
   );
 }

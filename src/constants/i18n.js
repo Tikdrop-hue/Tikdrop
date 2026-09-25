@@ -87,7 +87,7 @@ export const i18nDict = {
     toastDeleted: "Video berhasil dihapus!",
     footerExportZip: "Export Full ZIP",
 
-    // --- NEW: Tutorial Modal Content ---
+    // --- Tutorial Modal Content ---
     tutTabQuickstart: "Mulai Cepat",
     tutTabOffline: "Brankas Offline",
     tutTabBackup: "Backup & Ekspor",
@@ -134,7 +134,7 @@ export const i18nDict = {
     tutPrivacy2Desc4: "Biasakan untuk melakukan Export secara berkala ke tempat yang aman.",
     tutDocsVersion: "TikDrop Vault Docs Version 4.0",
 
-    // --- NEW: Onboarding (Get.jsx) Content ---
+    // --- Onboarding (Get.jsx) Content ---
     getWelcomeTitle: "Selamat Datang di Vault",
     getWelcomeSub: "Arsip Pribadi & Brankas Offline untuk menyimpan koleksi TikTok favorit Anda tanpa watermark.",
     getBtnStart: "Masuk ke Vault",
@@ -144,6 +144,22 @@ export const i18nDict = {
     getFeature2Desc: "Video diamankan di memori peramban. Tahan terhadap penghapusan tautan sumber.",
     getFeature3Title: "100% Privat & Aman",
     getFeature3Desc: "Tanpa server cloud. Data Anda sepenuhnya milik Anda.",
+
+    // --- Modal Login ---
+    authLoginTitle: "Masuk ke TikDrop",
+    authRegisterTitle: "Daftar Akun Baru",
+    authLoginSub: "Masuk untuk mengarsipkan video baru.",
+    authRegisterSub: "Buat akun agar bisa ikut berkontribusi.",
+    authEmailLabel: "Email",
+    authEmailPlaceholder: "nama@email.com",
+    authPasswordLabel: "Kata Sandi",
+    authPasswordPlaceholder: "••••••••",
+    authBtnLogin: "Masuk Sekarang",
+    authBtnRegister: "Daftar Sekarang",
+    authToggleToRegister: "Belum punya akun? Daftar di sini.",
+    authToggleToLogin: "Sudah punya akun? Masuk di sini.",
+    toastRegisterSuccess: "Registrasi berhasil! Silakan login.",
+    toastLoginSuccess: "Berhasil Login!",
   },
   en: {
     appSubtitle: "Vault Studio",
@@ -233,7 +249,7 @@ export const i18nDict = {
     toastDeleted: "Videos deleted!",
     footerExportZip: "Export Full ZIP",
 
-    // --- NEW: Tutorial Modal Content ---
+    // --- Tutorial Modal Content ---
     tutTabQuickstart: "Quickstart",
     tutTabOffline: "Offline Vault",
     tutTabBackup: "Backup & Export",
@@ -280,7 +296,7 @@ export const i18nDict = {
     tutPrivacy2Desc4: "Make it a habit to Export regularly to a safe place.",
     tutDocsVersion: "TikDrop Vault Docs Version 4.0",
 
-    // --- NEW: Onboarding (Get.jsx) Content ---
+    // --- Onboarding (Get.jsx) Content ---
     getWelcomeTitle: "Welcome to Vault",
     getWelcomeSub: "Personal Archive & Offline Vault to store your favorite TikTok collection without watermarks.",
     getBtnStart: "Enter Vault",
@@ -290,5 +306,21 @@ export const i18nDict = {
     getFeature2Desc: "Videos are secured in browser memory. Immune to source link deletion.",
     getFeature3Title: "100% Private & Secure",
     getFeature3Desc: "No cloud servers. Your data is exclusively yours.",
+
+    // --- Modal Login ---
+    authLoginTitle: "Login to TikDrop",
+    authRegisterTitle: "Register New Account",
+    authLoginSub: "Log in to archive new videos.",
+    authRegisterSub: "Create an account to start contributing.",
+    authEmailLabel: "Email",
+    authEmailPlaceholder: "name@email.com",
+    authPasswordLabel: "Password",
+    authPasswordPlaceholder: "••••••••",
+    authBtnLogin: "Login Now",
+    authBtnRegister: "Register Now",
+    authToggleToRegister: "Don't have an account? Register here.",
+    authToggleToLogin: "Already have an account? Login here.",
+    toastRegisterSuccess: "Registration successful! Please log in.",
+    toastLoginSuccess: "Login successful!",
   }
 };

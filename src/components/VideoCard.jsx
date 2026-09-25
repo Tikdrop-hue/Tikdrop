@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 
 export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onClick }) {
-  // State untuk mendeteksi apakah gambar thumbnail gagal dimuat
   const [imageError, setImageError] = useState(false);
 
-  // Mode Tampilan List
+  // Deteksi cerdas apakah thumbnail berupa video (.mp4, dll)
+  const checkIsVideo = (url) => {
+    if (!url) return false;
+    return url.includes('.mp4') || url.includes('.webm') || url.includes('.ogg');
+  };
+
+  const isVideoLink = checkIsVideo(item.thumbnail) || checkIsVideo(item.videoUrl);
+  const targetVideoSrc = item.videoUrl || item.thumbnail;
+
   if (viewMode === 'list') {
     return (
       <article
@@ -23,17 +30,16 @@ export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onC
           )}
           
           <div className="relative w-16 h-20 rounded-xl overflow-hidden bg-dark-950 flex-shrink-0 shadow-md">
-            {/* Fallback Image & Video Handler List View */}
-            {item.thumbnail && !imageError ? (
+            {item.thumbnail && !imageError && !isVideoLink ? (
               <img 
                 src={item.thumbnail} 
                 alt={item.title} 
                 onError={() => setImageError(true)}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
               />
-            ) : item.videoUrl ? (
+            ) : targetVideoSrc ? (
               <video 
-                src={`${item.videoUrl}#t=0.1`} 
+                src={`${targetVideoSrc}#t=0.1`} 
                 preload="metadata"
                 muted
                 playsInline
@@ -59,19 +65,19 @@ export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onC
             </h3>
             <div className="flex items-center gap-2.5 mb-1.5 text-[11px] text-slate-400">
               <span className="flex items-center gap-1.5 font-medium text-slate-300">
-                <i className={`fa-brands ${item.platform === 'instagram' ? 'fa-instagram' : 'fa-tiktok'} text-slate-500`}></i>
-                {item.creator}
+                <i className={`fa-brands fa-tiktok text-slate-500`}></i>
+                {item.creator || 'unknown'}
               </span>
-              {item.folder && (
+              {(item.folder || item.folder_id) && (
                 <>
                   <span className="w-1 h-1 rounded-full bg-dark-700"></span>
                   <span className="text-[10px] text-slate-400 bg-dark-900 px-2 py-0.5 rounded-md border border-dark-800">
-                    <i className="fa-solid fa-folder text-brand mr-1"></i>{item.folder}
+                    <i className="fa-solid fa-folder text-brand mr-1"></i>{item.folder || item.folder_id}
                   </span>
                 </>
               )}
             </div>
-            <p className="text-[11px] text-slate-500 truncate leading-relaxed">{item.caption || 'Tanpa deskripsi'}</p>
+            <p className="text-[11px] text-slate-500 truncate leading-relaxed">{item.note || 'Tanpa catatan'}</p>
           </div>
         </div>
         
@@ -84,7 +90,6 @@ export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onC
     );
   }
 
-  // Mode Tampilan Grid (Default)
   return (
     <article
       onClick={() => onClick(item.id)}
@@ -94,17 +99,16 @@ export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onC
     >
       <div className="relative w-full aspect-tiktok overflow-hidden bg-dark-950">
         
-        {/* Fallback Image & Video Handler Grid View */}
-        {item.thumbnail && !imageError ? (
+        {item.thumbnail && !imageError && !isVideoLink ? (
           <img 
             src={item.thumbnail} 
             alt={item.title} 
             onError={() => setImageError(true)}
             className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" 
           />
-        ) : item.videoUrl ? (
+        ) : targetVideoSrc ? (
           <video 
-            src={`${item.videoUrl}#t=0.1`} 
+            src={`${targetVideoSrc}#t=0.1`} 
             preload="metadata"
             muted
             playsInline
@@ -133,7 +137,7 @@ export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onC
         )}
 
         <div className="absolute top-2.5 right-2.5 bg-black/40 backdrop-blur-md w-7 h-7 flex items-center justify-center rounded-lg text-white z-10 border border-white/10 shadow-sm">
-          <i className={`fa-brands ${item.platform === 'instagram' ? 'fa-instagram' : 'fa-tiktok'} text-[13px]`}></i>
+          <i className={`fa-brands fa-tiktok text-[13px]`}></i>
         </div>
 
         <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-20">
@@ -146,9 +150,9 @@ export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onC
       <div className="p-4 flex flex-col justify-between flex-grow bg-dark-900/40 group-hover:bg-dark-900/80 transition-colors">
         <div>
           <div className="flex items-center gap-1.5 mb-1">
-            {item.folder && (
+            {(item.folder || item.folder_id) && (
               <span className="text-[9px] text-brand font-extrabold truncate">
-                <i className="fa-solid fa-folder mr-1"></i>{item.folder}
+                <i className="fa-solid fa-folder mr-1"></i>{item.folder || item.folder_id}
               </span>
             )}
           </div>
@@ -158,16 +162,11 @@ export default function VideoCard({ item, viewMode, isBatchMode, isSelected, onC
         </div>
         
         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dark-800/60">
-          {/* Avatar Area dengan Fallback Warna Brand (Fill Penuh, Tanpa Border) */}
           <div className="w-5 h-5 rounded-full bg-brand flex items-center justify-center text-[9px] text-slate-950 flex-shrink-0 overflow-hidden">
-            {item.avatar ? (
-              <img src={item.avatar} alt={item.creator} className="w-full h-full object-cover" />
-            ) : (
-              <i className="fa-solid fa-user"></i>
-            )}
+            <i className="fa-solid fa-user"></i>
           </div>
           <span className="truncate font-semibold text-[11px] text-slate-400 group-hover:text-slate-300 transition-colors">
-            {item.creator}
+            {item.creator || 'unknown'}
           </span>
         </div>
       </div>

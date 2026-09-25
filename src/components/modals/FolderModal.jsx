@@ -1,57 +1,93 @@
 import React, { useState } from 'react';
+// Sesuaikan path import supabaseClient dengan struktur folder Anda
+import { supabaseClient } from '../../supabaseClient'; 
 
-export default function FolderModal({ isOpen, t, userFolders, setUserFolders, onClose, onShowToast }) {
+// PERBAIKAN: Tambahkan t = {} dan userFolders = [] sebagai fallback
+export default function FolderModal({ isOpen, t = {}, userFolders = [], setUserFolders, onClose, onShowToast }) {
   const [folderName, setFolderName] = useState('');
-  // State baru untuk fitur edit
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
 
   if (!isOpen) return null;
 
-  const handleCreateFolder = (e) => {
+  const handleCreateFolder = async (e) => {
     e.preventDefault();
     const trimmed = folderName.trim();
     if (!trimmed) return;
     if (userFolders.some(f => f.name.toLowerCase() === trimmed.toLowerCase())) return;
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session?.user) {
+      onShowToast('Silakan login terlebih dahulu!', 'fa-lock');
+      return;
+    }
     
-    setUserFolders([...userFolders, { id: Date.now().toString(), name: trimmed }]);
+    const newId = Date.now().toString();
+    
+    // Optimistic UI Update
+    setUserFolders([...userFolders, { id: newId, name: trimmed }]);
     setFolderName('');
-    onShowToast(`Folder "${trimmed}" dibuat!`, 'fa-folder-plus');
+    
+    const { error } = await supabaseClient.from('folders').insert([
+      { id: newId, user_id: session.user.id, name: trimmed }
+    ]);
+
+    if (error) {
+      onShowToast('Gagal menyimpan ke database', 'fa-circle-xmark');
+      setUserFolders(prev => prev.filter(f => f.id !== newId));
+    } else {
+      onShowToast(`Folder "${trimmed}" dibuat!`, 'fa-folder-plus');
+    }
   };
 
-  const handleDeleteFolder = (id) => {
+  const handleDeleteFolder = async (id) => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session?.user) return;
+
     setUserFolders(userFolders.filter(f => f.id !== id));
+    
+    const { error } = await supabaseClient.from('folders').delete().eq('id', id);
+    if (error) {
+      onShowToast('Gagal menghapus folder', 'fa-circle-xmark');
+    } else {
+      onShowToast('Folder dihapus', 'fa-trash-can');
+    }
   };
 
-  // Fungsi untuk memulai mode edit
   const startEditing = (folder) => {
     setEditingId(folder.id);
     setEditName(folder.name);
   };
 
-  // Fungsi untuk membatalkan edit
   const cancelEditing = () => {
     setEditingId(null);
     setEditName('');
   };
 
-  // Fungsi untuk menyimpan perubahan nama folder
-  const handleUpdateFolder = (id) => {
+  const handleUpdateFolder = async (id) => {
     const trimmed = editName.trim();
     if (!trimmed) {
       cancelEditing();
       return;
     }
     
-    // Cek apakah nama baru sudah dipakai oleh folder lain
     if (userFolders.some(f => f.id !== id && f.name.toLowerCase() === trimmed.toLowerCase())) {
       onShowToast(`Nama folder sudah digunakan!`, 'fa-triangle-exclamation');
       return;
     }
 
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session?.user) return;
+
     setUserFolders(userFolders.map(f => f.id === id ? { ...f, name: trimmed } : f));
-    onShowToast(`Nama folder diperbarui!`, 'fa-pen-to-square');
     cancelEditing();
+
+    const { error } = await supabaseClient.from('folders').update({ name: trimmed }).eq('id', id);
+    if (error) {
+      onShowToast('Gagal memperbarui nama folder', 'fa-circle-xmark');
+    } else {
+      onShowToast(`Nama folder diperbarui!`, 'fa-pen-to-square');
+    }
   };
 
   return (
